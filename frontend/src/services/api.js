@@ -11,9 +11,26 @@ export function clearAuthCredentials() {
 }
 
 export async function getTerms() {
-  const response = await fetch(`${API_BASE_URL}/terms/`);
-  if (!response.ok) throw new Error('Failed to fetch terms');
-  return await response.json();
+  try {
+    const response = await fetch(`${API_BASE_URL}/terms/`, {
+      mode: 'cors',
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+      },
+    });
+    console.log('Terms Response:', response);
+    if (!response.ok) {
+      console.error('Response not OK:', response.status, response.statusText);
+      throw new Error('Failed to fetch terms');
+    }
+    const data = await response.json();
+    console.log('Terms Data:', data);
+    return data;
+  } catch (error) {
+    console.error('Fetch error:', error);
+    throw new Error('Failed to fetch terms');
+  }
 }
 
 export async function searchTerms(search = '', category = '') {
@@ -27,9 +44,26 @@ export async function searchTerms(search = '', category = '') {
 }
 
 export async function getCategories() {
-  const response = await fetch(`${API_BASE_URL}/categories/`);
-  if (!response.ok) throw new Error('Failed to fetch categories');
-  return await response.json();
+  try {
+    const response = await fetch(`${API_BASE_URL}/categories/`, {
+      mode: 'cors',
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+      },
+    });
+    console.log('Categories Response:', response);
+    if (!response.ok) {
+      console.error('Response not OK:', response.status, response.statusText);
+      throw new Error('Failed to fetch categories');
+    }
+    const data = await response.json();
+    console.log('Categories Data:', data);
+    return data;
+  } catch (error) {
+    console.error('Fetch error:', error);
+    throw new Error('Failed to fetch categories');
+  }
 }
 
 export async function verifyAuth() {

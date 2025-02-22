@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { searchTerms, getCategories } from '../services/api';
+import { searchTerms, getCategories, getTerms } from '../services/api';
 
 function SearchPage() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -11,10 +11,29 @@ function SearchPage() {
   const [suggestions, setSuggestions] = useState([]);
 
   useEffect(() => {
-    getCategories()
-      .then(setCategories)
-      .catch(err => setError('Failed to load categories'))
-      .finally(() => setLoading(false));
+    const fetchInitialData = async () => {
+      try {
+        setLoading(true);
+        const [termsData, categoriesData] = await Promise.all([
+          getTerms(),
+          getCategories()
+        ]);
+        console.log('Initial Terms:', termsData); // Debug log
+        console.log('Initial Categories:', categoriesData); // Debug log
+        setTerms(termsData || []);
+        setCategories(categoriesData || []);
+        setError(null);
+      } catch (err) {
+        console.error('Error fetching initial data:', err); // Debug log
+        setError('Failed to load terms. Please make sure the backend server is running.');
+        setTerms([]);
+        setCategories([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchInitialData();
   }, []);
 
   useEffect(() => {
@@ -56,7 +75,10 @@ function SearchPage() {
   if (error) {
     return (
       <div className="text-center text-red-600 mt-8">
-        {error}. Please make sure the backend server is running.
+        {error}
+        <div className="mt-2 text-sm">
+          Backend URL: {API_BASE_URL} {/* Debug info */}
+        </div>
       </div>
     );
   }
