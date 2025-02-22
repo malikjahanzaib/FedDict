@@ -8,4 +8,6 @@ services:
       - key: ADMIN_USERNAME
         sync: false
       - key: ADMIN_PASSWORD
-        sync: false 
+        sync: false
+      - key: RENDER
+        value: true 

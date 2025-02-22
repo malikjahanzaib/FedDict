@@ -1,13 +1,14 @@
+import os
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
-import os
 
-# Option 1: Use SQLite but in a persistent directory
-SQLALCHEMY_DATABASE_URL = "sqlite:////opt/render/project/src/feddict.db"
+# For local development
+SQLALCHEMY_DATABASE_URL = "sqlite:///./feddict.db"
 
-# Option 2: Use Render's PostgreSQL (Free tier available)
-# SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL")
+# For production on Render
+if os.getenv("RENDER"):
+    SQLALCHEMY_DATABASE_URL = "sqlite:////opt/render/project/src/feddict.db"
 
 engine = create_engine(
     SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False}
