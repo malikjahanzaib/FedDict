@@ -115,29 +115,27 @@ export async function verifyAuth() {
   }
 }
 
-export async function createTerm(termData) {
+export const createTerm = async (termData) => {
   try {
-    const response = await fetchWithTimeout(
-      `${API_BASE_URL}/terms/`,
-      {
-        method: 'POST',
-        mode: 'cors',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Basic ${authCredentials}`
-        },
-        body: JSON.stringify(termData),
-      }
-    );
-    return handleResponse(response, 'Failed to create term');
-  } catch (error) {
-    if (error.name === 'AbortError') {
-      throw new Error('Request timed out');
+    const response = await fetch(`${API_BASE_URL}/terms/`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Basic ${localStorage.getItem('authCredentials')}`
+      },
+      body: JSON.stringify(termData)
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.detail || 'Failed to create term');
     }
+
+    return await response.json();
+  } catch (error) {
     throw error;
   }
-}
+};
 
 export async function updateTerm(id, termData) {
   try {

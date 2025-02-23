@@ -66,11 +66,32 @@ function AdminPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
+      // Validate form data
+      if (!formData.term.trim()) {
+        toast.error('Term cannot be empty');
+        return;
+      }
+      if (formData.definition.trim().length < 10) {
+        toast.error('Definition must be at least 10 characters');
+        return;
+      }
+      if (!formData.category.trim()) {
+        toast.error('Category cannot be empty');
+        return;
+      }
+
+      // Clean form data
+      const cleanedData = {
+        term: formData.term.trim(),
+        definition: formData.definition.trim(),
+        category: formData.category.trim()
+      };
+
       if (selectedTerm) {
-        await updateTerm(selectedTerm.id, formData);
+        await updateTerm(selectedTerm.id, cleanedData);
         toast.success('Term updated successfully');
       } else {
-        await createTerm(formData);
+        await createTerm(cleanedData);
         toast.success('Term created successfully');
       }
       setFormData({ term: '', definition: '', category: '' });
@@ -78,7 +99,7 @@ function AdminPage() {
       fetchTerms();
     } catch (error) {
       console.error('Error:', error);
-      toast.error(error.message || 'Failed to save term');
+      toast.error(error.response?.data?.detail || 'Failed to save term');
     }
   };
 
