@@ -158,25 +158,35 @@ async def get_stats(username: str = Depends(get_admin_credentials)):
 
 @app.post("/admin/upload")
 async def upload_terms(
-    file: UploadFile,
-    background_tasks: BackgroundTasks,
+    file: UploadFile = File(...),
+    background_tasks: BackgroundTasks = BackgroundTasks(),
     username: str = Depends(get_admin_credentials)
 ):
     """Upload multiple terms via CSV or JSON file"""
-    content = await file.read()
-    content_str = content.decode()
+    if not file:
+        raise HTTPException(status_code=400, detail="No file uploaded")
+        
+    if not file.filename.endswith(('.csv', '.json')):
+        raise HTTPException(
+            status_code=400,
+            detail="Only CSV and JSON files are supported"
+        )
     
     try:
+        content = await file.read()
+        content_str = content.decode()
+        
         if file.filename.endswith('.csv'):
             csv_file = StringIO(content_str)
             reader = csv.DictReader(csv_file)
             terms = [row for row in reader]
-        elif file.filename.endswith('.json'):
+        else:  # JSON file
             terms = json.loads(content_str)
-        else:
+            
+        if not terms:
             raise HTTPException(
                 status_code=400,
-                detail="Only CSV and JSON files are supported"
+                detail="File contains no valid terms"
             )
 
         # Process terms in background
@@ -186,9 +196,22 @@ async def upload_terms(
             "message": f"Processing {len(terms)} terms in background",
             "status": "processing"
         }
+    except json.JSONDecodeError:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid JSON format"
+        )
+    except csv.Error:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid CSV format"
+        )
     except Exception as e:
         logger.error(f"Upload error: {e}")
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error processing file: {str(e)}"
+        )
 
 @app.exception_handler(HTTPException)
 async def custom_http_exception_handler(request, exc):
