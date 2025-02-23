@@ -12,24 +12,33 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 from sqlalchemy import text
+import logging
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 models.Base.metadata.create_all(bind=engine)
 
 def is_database_initialized(db_engine):
     try:
         with db_engine.connect() as connection:
-            # Check if we have any non-test terms (terms that don't start or end with '_')
             result = connection.execute(
                 text("SELECT COUNT(*) FROM term WHERE term NOT LIKE '_%' AND term NOT LIKE '%_'")
             )
-            return result.scalar() > 0
-    except:
+            count = result.scalar() > 0
+            logger.info(f"Database initialization check: found {count} non-test terms")
+            return count
+    except Exception as e:
+        logger.error(f"Database check failed: {e}")
         return False
 
 # Only initialize if database is completely empty or only has test terms
 if not is_database_initialized(engine):
+    logger.info("Initializing database with default terms")
     cleanup.cleanup_test_terms()
     initial_data.init_db()
+else:
+    logger.info("Database already initialized, skipping initialization")
 
 app = FastAPI(title="FedDict API")
 
