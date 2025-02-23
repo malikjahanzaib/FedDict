@@ -222,6 +222,15 @@ async def upload_terms(
             detail=f"Error processing file: {str(e)}"
         )
 
+@app.post("/admin/cleanup-duplicates")
+async def cleanup_duplicates(username: str = Depends(get_admin_credentials)):
+    """Remove duplicate terms from the database"""
+    count = await database.cleanup_duplicates()
+    return {
+        "message": f"Removed {count} duplicate terms",
+        "status": "completed"
+    }
+
 @app.exception_handler(HTTPException)
 async def custom_http_exception_handler(request, exc):
     return JSONResponse(

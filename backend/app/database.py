@@ -160,15 +160,26 @@ async def bulk_create_terms(terms: list):
             try:
                 # Validate term data
                 term = models_mongo.TermCreate(
-                    term=term_data['term'],
-                    definition=term_data['definition'],
-                    category=term_data['category']
+                    term=term_data['term'].strip(),  # Strip whitespace
+                    definition=term_data['definition'].strip(),
+                    category=term_data['category'].strip()
                 )
                 
-                # Check for duplicates
+                # Case-insensitive duplicate check
                 existing = await db.terms.find_one({
                     'term': {'$regex': f'^{term.term}$', '$options': 'i'}
                 })
+                
+                # Also check for full name if it's an acronym
+                if '(' in term.term:
+                    base_term = term.term.split('(')[0].strip()
+                    existing_base = await db.terms.find_one({
+                        'term': {'$regex': f'^{base_term}$', '$options': 'i'}
+                    })
+                    if existing_base:
+                        results["failed"] += 1
+                        results["errors"].append(f"Term '{term.term}' already exists as '{existing_base['term']}'")
+                        continue
                 
                 if existing:
                     results["failed"] += 1
@@ -191,4 +202,34 @@ async def bulk_create_terms(terms: list):
         
     except Exception as e:
         logger.error(f"Bulk creation error: {e}")
+        raise
+
+async def cleanup_duplicates():
+    """Remove duplicate terms from the database"""
+    try:
+        # Get all terms
+        terms = await db.terms.find().to_list(length=None)
+        
+        # Track processed terms to avoid duplicates
+        processed = set()
+        duplicates = []
+        
+        for term in terms:
+            term_lower = term['term'].lower()
+            
+            # If we've seen this term before
+            if term_lower in processed:
+                duplicates.append(term['_id'])
+            else:
+                processed.add(term_lower)
+        
+        # Remove duplicates
+        if duplicates:
+            result = await db.terms.delete_many({'_id': {'$in': duplicates}})
+            logger.info(f"Removed {result.deleted_count} duplicate terms")
+            
+        return len(duplicates)
+        
+    except Exception as e:
+        logger.error(f"Error cleaning up duplicates: {e}")
         raise 
