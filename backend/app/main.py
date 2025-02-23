@@ -54,10 +54,22 @@ limiter = Limiter(key_func=get_remote_address)
 app.state.limiter = limiter
 
 @app.middleware("http")
-async def track_activity(request: Request, call_next):
+async def middleware_handler(request: Request, call_next):
+    # Track activity for cold start handling
     global last_activity
     last_activity = datetime.now()
-    return await call_next(request)
+    
+    # Monitor request timing
+    start_time = time.time()
+    response = await call_next(request)
+    process_time = time.time() - start_time
+    
+    # Log slow requests (over 1 second)
+    if process_time > 1:
+        logger.warning(f"Slow request: {request.url.path} took {process_time:.2f}s")
+    
+    response.headers["X-Process-Time"] = str(process_time)
+    return response
 
 @app.get("/")
 async def read_root(background_tasks: BackgroundTasks):
@@ -150,17 +162,4 @@ async def custom_http_exception_handler(request, exc):
             "status_code": exc.status_code,
             "type": "error"
         }
-    )
-
-@app.middleware("http")
-async def monitor_requests(request: Request, call_next):
-    start_time = time.time()
-    response = await call_next(request)
-    process_time = time.time() - start_time
-    
-    # Log slow requests (over 1 second)
-    if process_time > 1:
-        logger.warning(f"Slow request: {request.url.path} took {process_time:.2f}s")
-    
-    response.headers["X-Process-Time"] = str(process_time)
-    return response 
+    ) 
