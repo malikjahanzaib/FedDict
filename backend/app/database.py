@@ -5,6 +5,9 @@ from typing import Optional
 from fastapi import HTTPException
 import logging
 
+# Initialize logger
+logger = logging.getLogger(__name__)
+
 # Get MongoDB URL from environment variable
 MONGODB_URL = os.getenv("MONGODB_URL")
 if not MONGODB_URL:
@@ -19,6 +22,8 @@ client = motor.motor_asyncio.AsyncIOMotorClient(
     serverSelectionTimeoutMS=5000,
     connectTimeoutMS=10000
 )
+
+db = client.feddict  # Add this line to define the database
 
 # Verify database connection on startup
 async def verify_database():
