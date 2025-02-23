@@ -18,6 +18,7 @@ function AdminPage() {
   });
   const { logout } = useAuth();
   const navigate = useNavigate();
+  const [stats, setStats] = useState(null);
 
   const fetchTerms = useCallback(async () => {
     try {
@@ -35,9 +36,24 @@ function AdminPage() {
     }
   }, [currentPage]);
 
+  const fetchStats = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/admin/stats`, {
+        headers: {
+          'Authorization': `Basic ${btoa(`${username}:${password}`)}`
+        }
+      });
+      const data = await response.json();
+      setStats(data);
+    } catch (error) {
+      console.error('Failed to fetch stats:', error);
+    }
+  };
+
   useEffect(() => {
     fetchTerms();
-  }, [fetchTerms]);
+    fetchStats();
+  }, [fetchTerms, fetchStats]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -106,6 +122,24 @@ function AdminPage() {
       >
         Next
       </button>
+    </div>
+  );
+
+  const StatsDisplay = () => stats && (
+    <div className="bg-white p-4 rounded-lg shadow mb-6">
+      <h3 className="text-lg font-semibold mb-2">Database Stats</h3>
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <p>Storage Used: {stats.size_mb}MB / {stats.storage_limit_mb}MB</p>
+          <p>Usage: {stats.usage_percentage}%</p>
+          <p>Total Documents: {stats.document_count}</p>
+        </div>
+        {stats.usage_percentage > 80 && (
+          <div className="text-red-600">
+            Warning: Approaching storage limit!
+          </div>
+        )}
+      </div>
     </div>
   );
 
@@ -221,6 +255,8 @@ function AdminPage() {
       </div>
 
       {!loading && terms.length > 0 && <Pagination />}
+
+      <StatsDisplay />
     </div>
   );
 }

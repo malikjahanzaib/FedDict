@@ -7,6 +7,7 @@ from .auth import get_admin_credentials
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 import logging
+import time
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -98,6 +99,14 @@ async def get_categories():
 async def verify_auth(username: str = Depends(get_admin_credentials)):
     return {"status": "authenticated", "username": username}
 
+@app.get("/admin/stats")
+async def get_stats(username: str = Depends(get_admin_credentials)):
+    """Get database and API statistics"""
+    stats = await database.get_database_stats()
+    if not stats:
+        raise HTTPException(status_code=500, detail="Failed to get database stats")
+    return stats
+
 @app.exception_handler(HTTPException)
 async def custom_http_exception_handler(request, exc):
     return JSONResponse(
@@ -107,4 +116,17 @@ async def custom_http_exception_handler(request, exc):
             "status_code": exc.status_code,
             "type": "error"
         }
-    ) 
+    )
+
+@app.middleware("http")
+async def monitor_requests(request: Request, call_next):
+    start_time = time.time()
+    response = await call_next(request)
+    process_time = time.time() - start_time
+    
+    # Log slow requests (over 1 second)
+    if process_time > 1:
+        logger.warning(f"Slow request: {request.url.path} took {process_time:.2f}s")
+    
+    response.headers["X-Process-Time"] = str(process_time)
+    return response 

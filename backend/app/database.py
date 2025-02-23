@@ -4,6 +4,7 @@ from bson import ObjectId
 from typing import Optional
 from fastapi import HTTPException
 import logging
+from datetime import datetime
 
 # Initialize logger
 logger = logging.getLogger(__name__)
@@ -91,8 +92,38 @@ async def delete_term(term_id: str):
     result = await db.terms.delete_one({'_id': ObjectId(term_id)})
     return result.deleted_count > 0
 
+async def get_database_stats():
+    try:
+        stats = await db.command("dbStats")
+        size_mb = stats["dataSize"] / (1024 * 1024)
+        doc_count = stats["objects"]
+        logger.info(f"Database Stats - Size: {size_mb:.2f}MB, Documents: {doc_count}")
+        return {
+            "size_mb": round(size_mb, 2),
+            "document_count": doc_count,
+            "storage_limit_mb": 512,  # Free tier limit
+            "usage_percentage": round((size_mb / 512) * 100, 2)
+        }
+    except Exception as e:
+        logger.error(f"Failed to get database stats: {e}")
+        return None
+
+# Add caching for categories
+_categories_cache = {"timestamp": None, "data": None}
+CACHE_DURATION = 300  # 5 minutes in seconds
+
 async def get_categories():
-    return await db.terms.distinct('category')
+    now = datetime.now().timestamp()
+    if (_categories_cache["timestamp"] and 
+        now - _categories_cache["timestamp"] < CACHE_DURATION):
+        return _categories_cache["data"]
+    
+    categories = await db.terms.distinct('category')
+    _categories_cache.update({
+        "timestamp": now,
+        "data": categories
+    })
+    return categories
 
 async def get_suggestions(search: str, limit: int = 5):
     query = {

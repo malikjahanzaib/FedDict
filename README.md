@@ -135,3 +135,21 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## Environment Variables
 Required environment variables:
 - `MONGODB_URL`: MongoDB connection string
+
+## Free Tier Limitations & Optimizations
+
+### MongoDB Atlas (Free M0)
+- Storage: 512MB limit
+- Connections: 100 max
+- Region: Single region
+
+### Render (Free)
+- Memory: 512MB RAM
+- Inactive Spin-down: 15 minutes
+- Build Minutes: 400/month
+
+### Optimizations
+- Database caching implemented
+- Request monitoring for slow queries
+- Storage usage tracking
+- Automatic cleanup for old data
