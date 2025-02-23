@@ -27,12 +27,10 @@ app.add_middleware(
     allow_origins=[
         "http://localhost:3000",
         "https://feddict.vercel.app",
-        "*"  # Temporarily allow all origins while debugging
     ],
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
-    expose_headers=["*"]
 )
 
 # Add rate limiting
@@ -62,7 +60,7 @@ def read_root():
         }
     })
 
-@app.get("/terms/", response_model=List[schemas.Term])
+@app.get("/terms/", response_model=schemas.PaginatedTermResponse)
 @limiter.limit("100/minute")
 async def get_terms(
     request: Request,

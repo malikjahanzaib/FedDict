@@ -32,7 +32,6 @@ export async function getTerms() {
           'Accept': 'application/json',
           'Content-Type': 'application/json',
         },
-        credentials: 'omit'
       }
     );
     return handleResponse(response, 'Failed to fetch terms');

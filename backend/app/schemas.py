@@ -18,7 +18,7 @@ class Term(TermBase):
     class Config:
         from_attributes = True
 
-class PaginatedResponse(BaseModel):
+class PaginatedTermResponse(BaseModel):
     items: List[Term]
     total: int
     page: int
