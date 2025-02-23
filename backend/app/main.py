@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Request, status, Depends
+from fastapi import FastAPI, HTTPException, Request, status, Depends, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from typing import Optional
@@ -8,11 +8,29 @@ from slowapi import Limiter
 from slowapi.util import get_remote_address
 import logging
 import time
+import asyncio
+from datetime import datetime
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = FastAPI(title="FedDict API")
+
+# Track last activity
+last_activity = datetime.now()
+
+# Warm-up tasks
+async def warm_up_tasks():
+    """Perform initialization tasks"""
+    try:
+        # Verify database connection
+        await database.verify_database()
+        # Pre-fetch categories for cache
+        await database.get_categories()
+        # Log warm-up success
+        logger.info("Warm-up tasks completed successfully")
+    except Exception as e:
+        logger.error(f"Warm-up failed: {e}")
 
 @app.on_event("startup")
 async def startup_event():
@@ -35,10 +53,26 @@ app.add_middleware(
 limiter = Limiter(key_func=get_remote_address)
 app.state.limiter = limiter
 
+@app.middleware("http")
+async def track_activity(request: Request, call_next):
+    global last_activity
+    last_activity = datetime.now()
+    return await call_next(request)
+
 @app.get("/")
-async def read_root():
+async def read_root(background_tasks: BackgroundTasks):
+    """Root endpoint with warm-up"""
+    # Calculate time since last activity
+    idle_time = (datetime.now() - last_activity).total_seconds()
+    
+    # If server was idle, trigger warm-up
+    if idle_time > 840:  # 14 minutes
+        background_tasks.add_task(warm_up_tasks)
+        logger.info("Triggered warm-up after inactivity")
+    
     return {
         "message": "FedDict API is running",
+        "status": "warming_up" if idle_time > 840 else "ready",
         "endpoints": {
             "terms": "/terms/",
             "categories": "/categories/",

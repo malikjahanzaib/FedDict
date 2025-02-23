@@ -11,6 +11,7 @@ function SearchPage() {
   const [isSearching, setIsSearching] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [isServerLoading, setIsServerLoading] = useState(true);
 
   const useDebounce = (value, delay) => {
     const [debouncedValue, setDebouncedValue] = useState(value);
@@ -95,6 +96,32 @@ function SearchPage() {
       setSuggestions([]);
     }
   }, [searchQuery]);
+
+  // Add initial health check
+  useEffect(() => {
+    const checkServer = async () => {
+      try {
+        const response = await fetch(`${API_BASE_URL}/`);
+        if (response.ok) {
+          setIsServerLoading(false);
+        }
+      } catch (error) {
+        console.error('Server warming up:', error);
+      }
+    };
+    checkServer();
+  }, []);
+
+  // Show warming up message during cold start
+  if (isServerLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mb-4"></div>
+        <p className="text-gray-600">Server is warming up, please wait...</p>
+        <p className="text-sm text-gray-500 mt-2">This may take a few seconds</p>
+      </div>
+    );
+  }
 
   // Add pagination controls to the UI
   const Pagination = () => (

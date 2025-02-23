@@ -4,7 +4,8 @@ from bson import ObjectId
 from typing import Optional
 from fastapi import HTTPException
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
+from functools import lru_cache
 
 # Initialize logger
 logger = logging.getLogger(__name__)
@@ -108,20 +109,25 @@ async def get_database_stats():
         logger.error(f"Failed to get database stats: {e}")
         return None
 
-# Add caching for categories
-_categories_cache = {"timestamp": None, "data": None}
-CACHE_DURATION = 300  # 5 minutes in seconds
+# Cache for frequently accessed data
+_cache = {
+    "categories": {"data": None, "timestamp": None},
+    "common_terms": {"data": None, "timestamp": None}
+}
+CACHE_DURATION = timedelta(minutes=5)
 
 async def get_categories():
-    now = datetime.now().timestamp()
-    if (_categories_cache["timestamp"] and 
-        now - _categories_cache["timestamp"] < CACHE_DURATION):
-        return _categories_cache["data"]
+    now = datetime.now()
+    cache = _cache["categories"]
+    
+    if cache["data"] and cache["timestamp"]:
+        if now - cache["timestamp"] < CACHE_DURATION:
+            return cache["data"]
     
     categories = await db.terms.distinct('category')
-    _categories_cache.update({
-        "timestamp": now,
-        "data": categories
+    _cache["categories"].update({
+        "data": categories,
+        "timestamp": now
     })
     return categories
 
@@ -131,4 +137,10 @@ async def get_suggestions(search: str, limit: int = 5):
     }
     cursor = db.terms.find(query).limit(limit)
     suggestions = await cursor.to_list(length=limit)
-    return [term['term'] for term in suggestions] 
+    return [term['term'] for term in suggestions]
+
+@lru_cache(maxsize=100)
+async def get_term_by_id(term_id: str):
+    """Cache individual term lookups"""
+    term = await db.terms.find_one({'_id': ObjectId(term_id)})
+    return fix_id(term) if term else None 

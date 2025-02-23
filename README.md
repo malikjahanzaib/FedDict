@@ -153,3 +153,13 @@ Required environment variables:
 - Request monitoring for slow queries
 - Storage usage tracking
 - Automatic cleanup for old data
+
+### Cold Start Handling
+- Server spins down after 15 minutes of inactivity
+- Initial request may take 10-30 seconds
+- Subsequent requests are fast
+- Implemented:
+  - Graceful loading states
+  - Background warm-up tasks
+  - Data caching
+  - Activity tracking
