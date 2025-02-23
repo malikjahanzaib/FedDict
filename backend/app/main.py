@@ -296,6 +296,11 @@ async def delete_all_terms(
             detail=f"Failed to delete all terms: {str(e)}"
         )
 
+@app.post("/admin/verify")
+async def verify_credentials(username: str = Depends(get_admin_credentials)):
+    """Verify admin credentials without performing any action"""
+    return {"status": "valid"}
+
 @app.exception_handler(HTTPException)
 async def custom_http_exception_handler(request, exc):
     return JSONResponse(

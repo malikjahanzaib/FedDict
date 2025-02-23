@@ -75,7 +75,7 @@ async def get_terms(
     sort_field = valid_fields.get(sort_field, 'term')
     sort_config = [(sort_field, 1 if sort_order == 'asc' else -1)]
     
-    # Add secondary sort by term for consistent ordering
+    # Only add secondary sort if primary sort isn't term
     if sort_field != 'term':
         sort_config.append(('term', 1))
 
@@ -89,7 +89,7 @@ async def get_terms(
             'total': total,
             'page': (skip // limit) + 1,
             'pages': (total + limit - 1) // limit,
-            'categories': await get_categories()  # Include categories in response
+            'categories': await get_categories()
         }
     except Exception as e:
         logger.error(f"Error in get_terms: {e}")

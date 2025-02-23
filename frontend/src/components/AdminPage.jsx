@@ -274,17 +274,26 @@ function AdminPage() {
         const today = new Date().toISOString().slice(0, 10).replace(/-/g, '');
         const confirmCode = `CONFIRM_DELETE_ALL_${today}`;
         
+        // First verify the password without attempting delete
+        const verifyResponse = await fetch(`${API_BASE_URL}/admin/verify`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Basic ${btoa(`admin:${password}`)}`
+          }
+        });
+
+        if (!verifyResponse.ok) {
+          toast.error('Incorrect admin password');
+          return;
+        }
+
+        // If password is correct, proceed with delete
         response = await fetch(`${API_BASE_URL}/admin/delete-all?confirmation=${confirmCode}`, {
           method: 'DELETE',
           headers: {
             'Authorization': `Basic ${btoa(`admin:${password}`)}`
           }
         });
-
-        if (response.status === 401) {
-          toast.error('Incorrect admin password');
-          return;
-        }
       } else {
         response = await fetch(`${API_BASE_URL}/admin/bulk-delete`, {
           method: 'POST',
@@ -306,8 +315,7 @@ function AdminPage() {
       setSelectAll(false);
       fetchTerms();
     } catch (error) {
-      console.error('Delete error:', error);
-      // Don't show the 401 error in toast since we handled it above
+      // Only show error toast if it's not a 401
       if (!error.message.includes('401')) {
         toast.error(error.message || 'Failed to delete terms');
       }
