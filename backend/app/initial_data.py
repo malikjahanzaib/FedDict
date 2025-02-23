@@ -1,5 +1,7 @@
 from . import database
-from .models import Term
+import logging
+
+logger = logging.getLogger(__name__)
 
 initial_terms = [
     {
@@ -30,5 +32,15 @@ initial_terms = [
 ]
 
 async def init_db():
-    for term_data in initial_terms:
-        await database.create_term(term_data) 
+    try:
+        # Check if we already have terms
+        existing = await database.get_terms(0, 1)
+        if existing['total'] == 0:
+            logger.info("Initializing database with default terms")
+            for term_data in initial_terms:
+                await database.create_term(term_data)
+            logger.info("Initial data loaded successfully")
+        else:
+            logger.info("Database already contains data, skipping initialization")
+    except Exception as e:
+        logger.error(f"Error loading initial data: {e}") 

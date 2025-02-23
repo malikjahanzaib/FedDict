@@ -2,7 +2,7 @@ from fastapi import FastAPI, HTTPException, Request, status, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from typing import Optional
-from . import database, models_mongo
+from . import database, models_mongo, initial_data
 from .auth import get_admin_credentials
 from slowapi import Limiter
 from slowapi.util import get_remote_address
@@ -12,6 +12,10 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = FastAPI(title="FedDict API")
+
+@app.on_event("startup")
+async def startup_event():
+    await initial_data.init_db()
 
 # Configure CORS
 app.add_middleware(
