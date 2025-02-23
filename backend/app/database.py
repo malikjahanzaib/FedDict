@@ -143,4 +143,47 @@ async def get_suggestions(search: str, limit: int = 5):
 async def get_term_by_id(term_id: str):
     """Cache individual term lookups"""
     term = await db.terms.find_one({'_id': ObjectId(term_id)})
-    return fix_id(term) if term else None 
+    return fix_id(term) if term else None
+
+async def bulk_create_terms(terms: list):
+    """Bulk create terms with validation and duplicate checking"""
+    try:
+        results = {
+            "processed": 0,
+            "success": 0,
+            "failed": 0,
+            "errors": []
+        }
+        
+        for term_data in terms:
+            try:
+                # Validate term data
+                term = models_mongo.TermCreate(**term_data)
+                
+                # Check for duplicates
+                existing = await db.terms.find_one({
+                    'term': {'$regex': f'^{term.term}$', '$options': 'i'}
+                })
+                
+                if existing:
+                    results["failed"] += 1
+                    results["errors"].append(f"Term '{term.term}' already exists")
+                    continue
+                
+                # Create term
+                await db.terms.insert_one(term.dict())
+                results["success"] += 1
+                
+            except Exception as e:
+                results["failed"] += 1
+                results["errors"].append(f"Error processing term: {str(e)}")
+            
+            results["processed"] += 1
+        
+        # Log results
+        logger.info(f"Bulk upload results: {results}")
+        return results
+        
+    except Exception as e:
+        logger.error(f"Bulk creation error: {e}")
+        raise 

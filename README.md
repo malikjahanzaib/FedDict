@@ -163,3 +163,11 @@ Required environment variables:
   - Background warm-up tasks
   - Data caching
   - Activity tracking
+
+### Bulk Upload
+- Support for CSV and JSON file uploads
+- CSV format: term,definition,category
+- JSON format: array of objects with term, definition, category
+- Background processing for large files
+- Duplicate checking and validation
+- Error reporting for failed entries

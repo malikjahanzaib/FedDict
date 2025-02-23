@@ -19,6 +19,7 @@ function AdminPage() {
   const { logout } = useAuth();
   const navigate = useNavigate();
   const [stats, setStats] = useState(null);
+  const [uploading, setUploading] = useState(false);
 
   // Get auth credentials from localStorage
   const authCredentials = localStorage.getItem('authCredentials');
@@ -132,6 +133,46 @@ function AdminPage() {
     });
   };
 
+  const handleFileUpload = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.name.match(/\.(csv|json)$/)) {
+      toast.error('Please upload a CSV or JSON file');
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    setUploading(true);
+    try {
+      const response = await fetch(`${API_BASE_URL}/admin/upload`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Basic ${localStorage.getItem('authCredentials')}`
+        },
+        body: formData
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.detail || 'Upload failed');
+      }
+
+      toast.success('File uploaded successfully! Processing terms...');
+      // Refresh terms list after a short delay
+      setTimeout(() => fetchTerms(), 2000);
+    } catch (error) {
+      console.error('Upload error:', error);
+      toast.error(error.message || 'Failed to upload file');
+    } finally {
+      setUploading(false);
+      event.target.value = ''; // Reset file input
+    }
+  };
+
   const Pagination = () => (
     <div className="flex justify-center mt-4 space-x-2">
       <button
@@ -169,6 +210,32 @@ function AdminPage() {
           </div>
         )}
       </div>
+    </div>
+  );
+
+  const BulkUpload = () => (
+    <div className="mb-8 p-4 border rounded-lg bg-gray-50">
+      <h3 className="text-lg font-semibold mb-2">Bulk Upload Terms</h3>
+      <div className="flex items-center space-x-4">
+        <input
+          type="file"
+          accept=".csv,.json"
+          onChange={handleFileUpload}
+          disabled={uploading}
+          className="block w-full text-sm text-gray-500
+            file:mr-4 file:py-2 file:px-4
+            file:rounded-full file:border-0
+            file:text-sm file:font-semibold
+            file:bg-blue-50 file:text-blue-700
+            hover:file:bg-blue-100"
+        />
+        {uploading && (
+          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-500"></div>
+        )}
+      </div>
+      <p className="mt-2 text-sm text-gray-600">
+        Upload CSV or JSON file with columns: term, definition, category
+      </p>
     </div>
   );
 
@@ -286,6 +353,7 @@ function AdminPage() {
       {!loading && terms.length > 0 && <Pagination />}
 
       <StatsDisplay />
+      <BulkUpload />
     </div>
   );
 }

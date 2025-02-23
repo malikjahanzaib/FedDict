@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Request, status, Depends, BackgroundTasks
+from fastapi import FastAPI, HTTPException, Request, status, Depends, BackgroundTasks, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from typing import Optional
@@ -10,6 +10,9 @@ import logging
 import time
 import asyncio
 from datetime import datetime
+import csv
+import json
+from io import StringIO
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -152,6 +155,40 @@ async def get_stats(username: str = Depends(get_admin_credentials)):
     if not stats:
         raise HTTPException(status_code=500, detail="Failed to get database stats")
     return stats
+
+@app.post("/admin/upload")
+async def upload_terms(
+    file: UploadFile,
+    background_tasks: BackgroundTasks,
+    username: str = Depends(get_admin_credentials)
+):
+    """Upload multiple terms via CSV or JSON file"""
+    content = await file.read()
+    content_str = content.decode()
+    
+    try:
+        if file.filename.endswith('.csv'):
+            csv_file = StringIO(content_str)
+            reader = csv.DictReader(csv_file)
+            terms = [row for row in reader]
+        elif file.filename.endswith('.json'):
+            terms = json.loads(content_str)
+        else:
+            raise HTTPException(
+                status_code=400,
+                detail="Only CSV and JSON files are supported"
+            )
+
+        # Process terms in background
+        background_tasks.add_task(database.bulk_create_terms, terms)
+        
+        return {
+            "message": f"Processing {len(terms)} terms in background",
+            "status": "processing"
+        }
+    except Exception as e:
+        logger.error(f"Upload error: {e}")
+        raise HTTPException(status_code=400, detail=str(e))
 
 @app.exception_handler(HTTPException)
 async def custom_http_exception_handler(request, exc):
