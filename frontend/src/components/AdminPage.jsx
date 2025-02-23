@@ -9,6 +9,9 @@ function AdminPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedTerm, setSelectedTerm] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
   const [formData, setFormData] = useState({
     term: '',
     definition: '',
@@ -19,13 +22,15 @@ function AdminPage() {
 
   useEffect(() => {
     fetchTerms();
-  }, []);
+  }, [currentPage]);
 
   const fetchTerms = async () => {
     try {
       setLoading(true);
-      const response = await getTerms();
+      const response = await getTerms(currentPage);
       setTerms(response.items || []);
+      setTotalPages(response.pages || 1);
+      setTotalItems(response.total || 0);
       setError(null);
     } catch (err) {
       console.error('Error fetching terms:', err);
@@ -83,6 +88,28 @@ function AdminPage() {
       [e.target.name]: e.target.value
     });
   };
+
+  const Pagination = () => (
+    <div className="flex justify-center mt-4 space-x-2">
+      <button
+        onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+        disabled={currentPage === 1}
+        className="px-4 py-2 rounded bg-blue-500 text-white disabled:bg-gray-300"
+      >
+        Previous
+      </button>
+      <span className="px-4 py-2">
+        Page {currentPage} of {totalPages}
+      </span>
+      <button
+        onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+        disabled={currentPage === totalPages}
+        className="px-4 py-2 rounded bg-blue-500 text-white disabled:bg-gray-300"
+      >
+        Next
+      </button>
+    </div>
+  );
 
   if (loading) {
     return (
@@ -194,6 +221,8 @@ function AdminPage() {
           </div>
         ))}
       </div>
+
+      {!loading && terms.length > 0 && <Pagination />}
     </div>
   );
 }
