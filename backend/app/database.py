@@ -45,24 +45,35 @@ def fix_id(obj):
     return obj
 
 # Database operations
-async def get_terms(skip: int = 0, limit: int = 10, search: Optional[str] = None, category: Optional[str] = None):
+async def get_terms(
+    skip: int = 0,
+    limit: int = 10,
+    search: Optional[str] = None,
+    category: Optional[str] = None,
+    sort_field: str = 'term',
+    sort_order: str = 'asc'
+):
     query = {}
     if search:
-        # Escape special characters in search string
         escaped_search = search.replace('(', '\(').replace(')', '\)')
         query['$or'] = [
-            # Exact match for term (case-insensitive)
-            {'term': {'$regex': f'^{escaped_search}$', '$options': 'i'}},
-            # Partial match for term
             {'term': {'$regex': f'{escaped_search}', '$options': 'i'}},
-            # Search in definition
-            {'definition': {'$regex': f'{escaped_search}', '$options': 'i'}}
+            {'definition': {'$regex': f'{escaped_search}', '$options': 'i'}},
+            {'category': {'$regex': f'{escaped_search}', '$options': 'i'}}
         ]
     if category:
         query['category'] = category
 
+    # Validate sort field
+    valid_fields = {'term', 'definition', 'category'}
+    if sort_field not in valid_fields:
+        sort_field = 'term'
+
+    # Create sort configuration
+    sort_config = [(sort_field, 1 if sort_order == 'asc' else -1)]
+
     try:
-        cursor = db.terms.find(query).skip(skip).limit(limit)
+        cursor = db.terms.find(query).sort(sort_config).skip(skip).limit(limit)
         terms = await cursor.to_list(length=limit)
         total = await db.terms.count_documents(query)
         

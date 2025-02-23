@@ -26,6 +26,9 @@ function AdminPage() {
   const [selectAll, setSelectAll] = useState(false);
   const [deleteConfirmPassword, setDeleteConfirmPassword] = useState('');
   const [deleteConfirmPhrase, setDeleteConfirmPhrase] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [sortOrder, setSortOrder] = useState('asc');
+  const [sortField, setSortField] = useState('term');
 
   // Get auth credentials from localStorage
   const authCredentials = localStorage.getItem('authCredentials');
@@ -33,9 +36,22 @@ function AdminPage() {
   const fetchTerms = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await getTerms(currentPage);
-      setTerms(response.items || []);
-      setTotalPages(response.pages || 1);
+      const queryParams = new URLSearchParams({
+        page: currentPage,
+        search: searchTerm,
+        sort_field: sortField,
+        sort_order: sortOrder
+      });
+      
+      const response = await fetch(`${API_BASE_URL}/terms/?${queryParams}`, {
+        headers: {
+          'Authorization': `Basic ${localStorage.getItem('authCredentials')}`
+        }
+      });
+      const data = await response.json();
+      
+      setTerms(data.items || []);
+      setTotalPages(data.pages || 1);
       setError(null);
     } catch (err) {
       console.error('Error fetching terms:', err);
@@ -44,7 +60,7 @@ function AdminPage() {
     } finally {
       setLoading(false);
     }
-  }, [currentPage]);
+  }, [currentPage, searchTerm, sortField, sortOrder]);
 
   const fetchStats = async () => {
     try {
@@ -258,17 +274,17 @@ function AdminPage() {
         const today = new Date().toISOString().slice(0, 10).replace(/-/g, '');
         const confirmCode = `CONFIRM_DELETE_ALL_${today}`;
         
-        // Use stored credentials for normal operations, but password param for delete all
-        const authString = deleteType === 'all' 
-          ? btoa(`admin:${password}`)
-          : localStorage.getItem('authCredentials');
-        
         response = await fetch(`${API_BASE_URL}/admin/delete-all?confirmation=${confirmCode}`, {
           method: 'DELETE',
           headers: {
-            'Authorization': `Basic ${authString}`
+            'Authorization': `Basic ${btoa(`admin:${password}`)}`
           }
         });
+
+        if (response.status === 401) {
+          toast.error('Incorrect admin password');
+          return;
+        }
       } else {
         response = await fetch(`${API_BASE_URL}/admin/bulk-delete`, {
           method: 'POST',
@@ -282,9 +298,6 @@ function AdminPage() {
 
       const data = await response.json();
       if (!response.ok) {
-        if (response.status === 401) {
-          throw new Error('Incorrect admin password');
-        }
         throw new Error(data.detail || 'Delete failed');
       }
 
@@ -294,7 +307,10 @@ function AdminPage() {
       fetchTerms();
     } catch (error) {
       console.error('Delete error:', error);
-      toast.error(error.message || 'Failed to delete terms');
+      // Don't show the 401 error in toast since we handled it above
+      if (!error.message.includes('401')) {
+        toast.error(error.message || 'Failed to delete terms');
+      }
     } finally {
       setShowDeleteConfirm(false);
       setDeleteType(null);
@@ -303,27 +319,75 @@ function AdminPage() {
     }
   };
 
-  const Pagination = () => (
-    <div className="flex justify-center mt-4 space-x-2">
-      <button
-        onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-        disabled={currentPage === 1}
-        className="px-4 py-2 rounded bg-blue-500 text-white disabled:bg-gray-300"
-      >
-        Previous
-      </button>
-      <span className="px-4 py-2">
-        Page {currentPage} of {totalPages}
-      </span>
-      <button
-        onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-        disabled={currentPage === totalPages}
-        className="px-4 py-2 rounded bg-blue-500 text-white disabled:bg-gray-300"
-      >
-        Next
-      </button>
-    </div>
-  );
+  const Pagination = () => {
+    const [jumpToPage, setJumpToPage] = useState('');
+
+    const handleJumpToPage = (e) => {
+      e.preventDefault();
+      const page = parseInt(jumpToPage);
+      if (page >= 1 && page <= totalPages) {
+        setCurrentPage(page);
+        setJumpToPage('');
+      } else {
+        toast.error(`Please enter a page number between 1 and ${totalPages}`);
+      }
+    };
+
+    return (
+      <div className="flex items-center justify-between mt-4 space-x-4">
+        <div className="flex space-x-2">
+          <button
+            onClick={() => setCurrentPage(1)}
+            disabled={currentPage === 1}
+            className="px-3 py-1 border rounded hover:bg-gray-100 disabled:opacity-50"
+          >
+            First
+          </button>
+          <button
+            onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+            disabled={currentPage === 1}
+            className="px-3 py-1 border rounded hover:bg-gray-100 disabled:opacity-50"
+          >
+            Previous
+          </button>
+          <span className="px-3 py-1">
+            Page {currentPage} of {totalPages}
+          </span>
+          <button
+            onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+            disabled={currentPage === totalPages}
+            className="px-3 py-1 border rounded hover:bg-gray-100 disabled:opacity-50"
+          >
+            Next
+          </button>
+          <button
+            onClick={() => setCurrentPage(totalPages)}
+            disabled={currentPage === totalPages}
+            className="px-3 py-1 border rounded hover:bg-gray-100 disabled:opacity-50"
+          >
+            Last
+          </button>
+        </div>
+        <form onSubmit={handleJumpToPage} className="flex items-center space-x-2">
+          <input
+            type="number"
+            min="1"
+            max={totalPages}
+            value={jumpToPage}
+            onChange={(e) => setJumpToPage(e.target.value)}
+            className="w-20 px-2 py-1 border rounded"
+            placeholder="Page #"
+          />
+          <button
+            type="submit"
+            className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600"
+          >
+            Go
+          </button>
+        </form>
+      </div>
+    );
+  };
 
   const StatsDisplay = () => stats && (
     <div className="bg-white p-4 rounded-lg shadow mb-6">
@@ -474,6 +538,37 @@ function AdminPage() {
       <h2 className="text-2xl font-bold mb-6">
         {selectedTerm ? 'Edit Term' : 'Add New Term'}
       </h2>
+
+      <div className="mb-6">
+        <div className="flex space-x-4 items-center">
+          <div className="flex-1">
+            <input
+              type="text"
+              placeholder="Search terms..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full p-2 border rounded"
+            />
+          </div>
+          <div className="flex space-x-2">
+            <select
+              value={sortField}
+              onChange={(e) => setSortField(e.target.value)}
+              className="p-2 border rounded"
+            >
+              <option value="term">Sort by Term</option>
+              <option value="category">Sort by Category</option>
+              <option value="definition">Sort by Definition</option>
+            </select>
+            <button
+              onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
+              className="p-2 border rounded hover:bg-gray-100"
+            >
+              {sortOrder === 'asc' ? '↑' : '↓'}
+            </button>
+          </div>
+        </div>
+      </div>
 
       <form onSubmit={handleSubmit} className="mb-8 space-y-4">
         <div>
