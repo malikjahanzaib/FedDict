@@ -8,6 +8,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 import { AuthProvider } from './contexts/AuthContext';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import ErrorBoundary from './components/ErrorBoundary';
 
 function App() {
   return (
@@ -16,18 +17,20 @@ function App() {
         <div className="min-h-screen bg-gray-50">
           <Navbar />
           <div className="container mx-auto px-4 py-8">
-            <Routes>
-              <Route path="/" element={<SearchPage />} />
-              <Route path="/login" element={<Login />} />
-              <Route 
-                path="/admin" 
-                element={
-                  <ProtectedRoute>
-                    <AdminPage />
-                  </ProtectedRoute>
-                } 
-              />
-            </Routes>
+            <ErrorBoundary>
+              <Routes>
+                <Route path="/" element={<SearchPage />} />
+                <Route path="/login" element={<Login />} />
+                <Route 
+                  path="/admin" 
+                  element={
+                    <ProtectedRoute>
+                      <AdminPage />
+                    </ProtectedRoute>
+                  } 
+                />
+              </Routes>
+            </ErrorBoundary>
           </div>
           <ToastContainer position="bottom-right" />
         </div>

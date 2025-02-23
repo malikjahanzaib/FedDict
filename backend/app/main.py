@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends, HTTPException, Query
+from fastapi import FastAPI, Depends, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from typing import List
@@ -8,6 +8,9 @@ from fastapi.responses import JSONResponse
 from . import initial_data
 from .auth import get_admin_credentials
 from . import cleanup  # Add this import at the top
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 
 models.Base.metadata.create_all(bind=engine)
 
@@ -30,6 +33,21 @@ app.add_middleware(
     allow_headers=["*"],  # You can specify headers if needed
 )
 
+# Add rate limiting
+limiter = Limiter(key_func=get_remote_address)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+# Add request logging
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    import time
+    start_time = time.time()
+    response = await call_next(request)
+    process_time = time.time() - start_time
+    response.headers["X-Process-Time"] = str(process_time)
+    return response
+
 @app.get("/")
 def read_root():
     return JSONResponse({
@@ -43,13 +61,16 @@ def read_root():
     })
 
 @app.get("/terms/", response_model=List[schemas.Term])
-def get_terms(
+@limiter.limit("100/minute")
+async def get_terms(
+    request: Request,
     search: str = None,
     category: str = None,
-    skip: int = 0,
-    limit: int = 100,
+    page: int = Query(1, gt=0),
+    per_page: int = Query(10, gt=0, le=100),
     db: Session = Depends(database.get_db)
 ):
+    skip = (page - 1) * per_page
     query = db.query(models.Term)
     
     if search:
@@ -60,7 +81,15 @@ def get_terms(
     if category:
         query = query.filter(models.Term.category == category)
     
-    return query.offset(skip).limit(limit).all()
+    total = query.count()
+    terms = query.offset(skip).limit(per_page).all()
+    
+    return {
+        "items": terms,
+        "total": total,
+        "page": page,
+        "pages": (total + per_page - 1) // per_page
+    }
 
 @app.post("/terms/", response_model=schemas.Term)
 def create_term(
@@ -128,4 +157,26 @@ def get_categories(db: Session = Depends(database.get_db)):
 
 @app.get("/verify-auth/")
 def verify_auth(username: str = Depends(get_admin_credentials)):
-    return {"status": "authenticated", "username": username} 
+    return {"status": "authenticated", "username": username}
+
+@app.exception_handler(HTTPException)
+async def custom_http_exception_handler(request, exc):
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={
+            "detail": exc.detail,
+            "status_code": exc.status_code,
+            "type": "error"
+        }
+    )
+
+@app.exception_handler(Exception)
+async def general_exception_handler(request, exc):
+    return JSONResponse(
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        content={
+            "detail": "An unexpected error occurred",
+            "status_code": 500,
+            "type": "error"
+        }
+    ) 

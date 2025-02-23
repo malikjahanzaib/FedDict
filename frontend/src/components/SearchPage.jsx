@@ -9,23 +9,44 @@ function SearchPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [suggestions, setSuggestions] = useState([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
+
+  const useDebounce = (value, delay) => {
+    const [debouncedValue, setDebouncedValue] = useState(value);
+
+    useEffect(() => {
+      const handler = setTimeout(() => {
+        setDebouncedValue(value);
+      }, delay);
+
+      return () => {
+        clearTimeout(handler);
+      };
+    }, [value, delay]);
+
+    return debouncedValue;
+  };
+
+  const debouncedSearchQuery = useDebounce(searchQuery, 300);
 
   useEffect(() => {
     const fetchInitialData = async () => {
       try {
         setLoading(true);
-        const [termsData, categoriesData] = await Promise.all([
+        const [termsResponse, categoriesData] = await Promise.all([
           getTerms(),
           getCategories()
         ]);
-        console.log('Initial Terms:', termsData); // Debug log
-        console.log('Initial Categories:', categoriesData); // Debug log
-        setTerms(termsData || []);
+        setTerms(termsResponse.items || []);
+        setTotalPages(termsResponse.pages || 1);
+        setTotalItems(termsResponse.total || 0);
         setCategories(categoriesData || []);
         setError(null);
       } catch (err) {
-        console.error('Error fetching initial data:', err); // Debug log
-        setError('Failed to load terms. Please make sure the backend server is running.');
+        setError('Failed to load initial data');
         setTerms([]);
         setCategories([]);
       } finally {
@@ -37,23 +58,24 @@ function SearchPage() {
   }, []);
 
   useEffect(() => {
-    setLoading(true);
-    const fetchTerms = async () => {
+    if (!debouncedSearchQuery) return;
+    
+    const fetchResults = async () => {
+      setIsSearching(true);
       try {
-        const results = await searchTerms(searchQuery, selectedCategory);
-        setTerms(results);
-        setError(null);
-      } catch (err) {
-        setError('Failed to load terms');
-        setTerms([]);
+        const response = await searchTerms(debouncedSearchQuery, selectedCategory, currentPage);
+        setTerms(response.items);
+        setTotalPages(response.pages);
+        setTotalItems(response.total);
+      } catch (error) {
+        setError('Search failed. Please try again.');
       } finally {
-        setLoading(false);
+        setIsSearching(false);
       }
     };
-    
-    const timeoutId = setTimeout(fetchTerms, 300);
-    return () => clearTimeout(timeoutId);
-  }, [searchQuery, selectedCategory]);
+
+    fetchResults();
+  }, [debouncedSearchQuery, selectedCategory, currentPage]);
 
   // Debounced search for suggestions
   useEffect(() => {
@@ -71,6 +93,29 @@ function SearchPage() {
       setSuggestions([]);
     }
   }, [searchQuery]);
+
+  // Add pagination controls to the UI
+  const Pagination = () => (
+    <div className="flex justify-center mt-4 space-x-2">
+      <button
+        onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+        disabled={currentPage === 1}
+        className="px-4 py-2 rounded bg-blue-500 text-white disabled:bg-gray-300"
+      >
+        Previous
+      </button>
+      <span className="px-4 py-2">
+        Page {currentPage} of {totalPages}
+      </span>
+      <button
+        onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+        disabled={currentPage === totalPages}
+        className="px-4 py-2 rounded bg-blue-500 text-white disabled:bg-gray-300"
+      >
+        Next
+      </button>
+    </div>
+  );
 
   if (error) {
     return (
@@ -126,10 +171,12 @@ function SearchPage() {
         </select>
       </div>
 
-      {loading ? (
-        <div className="text-center text-gray-600">Loading...</div>
+      {isSearching ? (
+        <div className="flex justify-center items-center py-8">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+        </div>
       ) : terms.length === 0 ? (
-        <div className="text-center text-gray-600">
+        <div className="text-center text-gray-600 py-8">
           No terms found. Try adjusting your search.
         </div>
       ) : (
@@ -148,6 +195,8 @@ function SearchPage() {
           ))}
         </div>
       )}
+
+      <Pagination />
     </div>
   );
 }

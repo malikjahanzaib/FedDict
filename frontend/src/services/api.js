@@ -12,6 +12,16 @@ export function clearAuthCredentials() {
 
 export { API_BASE_URL };
 
+// Add error handling middleware
+const handleResponse = async (response, errorMessage) => {
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    throw new Error(error.detail || errorMessage);
+  }
+  return response.json();
+};
+
+// Optimize API calls with better error handling
 export async function getTerms() {
   try {
     const response = await fetch(`${API_BASE_URL}/terms/`, {
@@ -21,50 +31,59 @@ export async function getTerms() {
         'Content-Type': 'application/json',
       },
     });
-    console.log('Terms Response:', response);
-    if (!response.ok) {
-      console.error('Response not OK:', response.status, response.statusText);
-      throw new Error('Failed to fetch terms');
-    }
-    const data = await response.json();
-    console.log('Terms Data:', data);
-    return data;
+    return handleResponse(response, 'Failed to fetch terms');
   } catch (error) {
     console.error('Fetch error:', error);
-    throw new Error('Failed to fetch terms');
+    throw error;
   }
 }
 
-export async function searchTerms(search = '', category = '') {
-  const params = new URLSearchParams();
-  if (search) params.append('search', search);
-  if (category) params.append('category', category);
+export async function searchTerms(search = '', category = '', page = 1) {
+  const params = new URLSearchParams({
+    search: search,
+    category: category,
+    page: page,
+    per_page: 10
+  });
   
-  const response = await fetch(`${API_BASE_URL}/terms/?${params}`);
-  if (!response.ok) throw new Error('Failed to search terms');
-  return await response.json();
+  try {
+    const response = await fetchWithTimeout(
+      `${API_BASE_URL}/terms/?${params}`,
+      {
+        mode: 'cors',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+    return handleResponse(response, 'Failed to search terms');
+  } catch (error) {
+    if (error.name === 'AbortError') {
+      throw new Error('Request timed out');
+    }
+    throw error;
+  }
 }
 
 export async function getCategories() {
   try {
-    const response = await fetch(`${API_BASE_URL}/categories/`, {
-      mode: 'cors',
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-      },
-    });
-    console.log('Categories Response:', response);
-    if (!response.ok) {
-      console.error('Response not OK:', response.status, response.statusText);
-      throw new Error('Failed to fetch categories');
-    }
-    const data = await response.json();
-    console.log('Categories Data:', data);
-    return data;
+    const response = await fetchWithTimeout(
+      `${API_BASE_URL}/categories/`,
+      {
+        mode: 'cors',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+    return handleResponse(response, 'Failed to fetch categories');
   } catch (error) {
-    console.error('Fetch error:', error);
-    throw new Error('Failed to fetch categories');
+    if (error.name === 'AbortError') {
+      throw new Error('Request timed out');
+    }
+    throw error;
   }
 }
 
@@ -87,46 +106,82 @@ export async function verifyAuth() {
 }
 
 export async function createTerm(termData) {
-  const response = await fetch(`${API_BASE_URL}/terms/`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Basic ${authCredentials}`
-    },
-    body: JSON.stringify(termData),
-  });
-  
-  if (response.status === 401) {
-    throw new Error('Unauthorized - Please log in again');
+  try {
+    const response = await fetchWithTimeout(
+      `${API_BASE_URL}/terms/`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Basic ${authCredentials}`
+        },
+        body: JSON.stringify(termData),
+      }
+    );
+    return handleResponse(response, 'Failed to create term');
+  } catch (error) {
+    if (error.name === 'AbortError') {
+      throw new Error('Request timed out');
+    }
+    throw error;
   }
-  
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.detail || 'Failed to create term');
-  }
-  
-  return await response.json();
 }
 
 export async function updateTerm(id, termData) {
-  const response = await fetch(`${API_BASE_URL}/terms/${id}`, {
-    method: 'PUT',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Basic ${authCredentials}`
-    },
-    body: JSON.stringify(termData),
-  });
-  if (!response.ok) throw new Error('Failed to update term');
-  return await response.json();
+  try {
+    const response = await fetchWithTimeout(
+      `${API_BASE_URL}/terms/${id}`,
+      {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Basic ${authCredentials}`
+        },
+        body: JSON.stringify(termData),
+      }
+    );
+    return handleResponse(response, 'Failed to update term');
+  } catch (error) {
+    if (error.name === 'AbortError') {
+      throw new Error('Request timed out');
+    }
+    throw error;
+  }
 }
 
 export async function deleteTerm(id) {
-  const response = await fetch(`${API_BASE_URL}/terms/${id}`, {
-    method: 'DELETE',
-    headers: {
-      'Authorization': `Basic ${authCredentials}`
+  try {
+    const response = await fetchWithTimeout(
+      `${API_BASE_URL}/terms/${id}`,
+      {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Basic ${authCredentials}`
+        }
+      }
+    );
+    return handleResponse(response, 'Failed to delete term');
+  } catch (error) {
+    if (error.name === 'AbortError') {
+      throw new Error('Request timed out');
     }
-  });
-  if (!response.ok) throw new Error('Failed to delete term');
-} 
+    throw error;
+  }
+}
+
+// Add request timeout
+const fetchWithTimeout = async (url, options, timeout = 5000) => {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeout);
+  try {
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal,
+    });
+    clearTimeout(id);
+    return response;
+  } catch (error) {
+    clearTimeout(id);
+    throw error;
+  }
+}; 

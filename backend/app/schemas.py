@@ -1,6 +1,6 @@
 from pydantic import BaseModel
 from datetime import datetime
-from typing import Optional
+from typing import Optional, List
 
 class TermBase(BaseModel):
     term: str
@@ -16,4 +16,10 @@ class Term(TermBase):
     updated_at: Optional[datetime]
 
     class Config:
-        from_attributes = True 
+        from_attributes = True
+
+class PaginatedResponse(BaseModel):
+    items: List[Term]
+    total: int
+    page: int
+    pages: int 
