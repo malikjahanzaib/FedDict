@@ -48,23 +48,33 @@ def fix_id(obj):
 async def get_terms(skip: int = 0, limit: int = 10, search: Optional[str] = None, category: Optional[str] = None):
     query = {}
     if search:
+        # Escape special characters in search string
+        escaped_search = search.replace('(', '\(').replace(')', '\)')
         query['$or'] = [
-            {'term': {'$regex': search, '$options': 'i'}},
-            {'definition': {'$regex': search, '$options': 'i'}}
+            # Exact match for term (case-insensitive)
+            {'term': {'$regex': f'^{escaped_search}$', '$options': 'i'}},
+            # Partial match for term
+            {'term': {'$regex': f'{escaped_search}', '$options': 'i'}},
+            # Search in definition
+            {'definition': {'$regex': f'{escaped_search}', '$options': 'i'}}
         ]
     if category:
         query['category'] = category
 
-    cursor = db.terms.find(query).skip(skip).limit(limit)
-    terms = await cursor.to_list(length=limit)
-    total = await db.terms.count_documents(query)
-    
-    return {
-        'items': [fix_id(term) for term in terms],
-        'total': total,
-        'page': (skip // limit) + 1,
-        'pages': (total + limit - 1) // limit
-    }
+    try:
+        cursor = db.terms.find(query).skip(skip).limit(limit)
+        terms = await cursor.to_list(length=limit)
+        total = await db.terms.count_documents(query)
+        
+        return {
+            'items': [fix_id(term) for term in terms],
+            'total': total,
+            'page': (skip // limit) + 1,
+            'pages': (total + limit - 1) // limit
+        }
+    except Exception as e:
+        logger.error(f"Error in get_terms: {e}")
+        raise
 
 async def create_term(term_data: dict):
     # Check if term already exists (case-insensitive)
@@ -133,12 +143,24 @@ async def get_categories():
     return categories
 
 async def get_suggestions(search: str, limit: int = 5):
-    query = {
-        'term': {'$regex': f'^{search}', '$options': 'i'}
-    }
-    cursor = db.terms.find(query).limit(limit)
-    suggestions = await cursor.to_list(length=limit)
-    return [term['term'] for term in suggestions]
+    """Get term suggestions for autocomplete"""
+    try:
+        # Escape special characters in search string
+        escaped_search = search.replace('(', '\(').replace(')', '\)')
+        query = {
+            'term': {'$regex': f'{escaped_search}', '$options': 'i'}
+        }
+        cursor = db.terms.find(query).limit(limit)
+        suggestions = await cursor.to_list(length=limit)
+        
+        # Return both term and id for each suggestion
+        return [{
+            'term': term['term'],
+            'id': str(term['_id'])
+        } for term in suggestions]
+    except Exception as e:
+        logger.error(f"Error in get_suggestions: {e}")
+        return []
 
 @lru_cache(maxsize=100)
 async def get_term_by_id(term_id: str):

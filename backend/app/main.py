@@ -103,8 +103,16 @@ async def get_terms(
     page: int = 1,
     per_page: int = 10
 ):
-    skip = (page - 1) * per_page
-    return await database.get_terms(skip, per_page, search, category)
+    """Get terms with optional search and category filters"""
+    try:
+        skip = (page - 1) * per_page
+        return await database.get_terms(skip, per_page, search, category)
+    except Exception as e:
+        logger.error(f"Error in get_terms endpoint: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to fetch terms"
+        )
 
 @app.post("/terms/")
 @limiter.limit("10/minute")
