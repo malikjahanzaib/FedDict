@@ -125,13 +125,3 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - React documentation
 - TailwindCSS documentation
 ```
-
-Let's commit this README:
-
-``` bash
-git add README.md
-git commit -m "Add comprehensive README documentation"
-git push
-```
-
-Would you like me to explain any part of the README in more detail?
