@@ -148,6 +148,8 @@ function AdminPage() {
 
     setUploading(true);
     try {
+      console.log('Uploading file:', file.name); // Debug log
+
       const response = await fetch(`${API_BASE_URL}/admin/upload`, {
         method: 'POST',
         headers: {
@@ -156,12 +158,29 @@ function AdminPage() {
         body: formData
       });
 
+      const data = await response.json();
+      console.log('Upload response:', data); // Debug log
+
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.detail || 'Upload failed');
+        throw new Error(data.detail || 'Upload failed');
       }
 
-      toast.success('File uploaded successfully! Processing terms...');
+      // Show detailed results
+      if (data.results) {
+        toast.info(`Processed: ${data.results.processed}
+          Success: ${data.results.success}
+          Failed: ${data.results.failed}`);
+        
+        // Show errors if any
+        if (data.results.errors?.length > 0) {
+          data.results.errors.forEach(error => {
+            toast.warning(error);
+          });
+        }
+      } else {
+        toast.success(data.message || 'File uploaded successfully!');
+      }
+
       // Refresh terms list after a short delay
       setTimeout(() => fetchTerms(), 2000);
     } catch (error) {

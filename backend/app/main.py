@@ -163,6 +163,8 @@ async def upload_terms(
     username: str = Depends(get_admin_credentials)
 ):
     """Upload multiple terms via CSV or JSON file"""
+    logger.info(f"Received file upload: {file.filename}")
+    
     if not file:
         raise HTTPException(status_code=400, detail="No file uploaded")
         
@@ -175,13 +177,17 @@ async def upload_terms(
     try:
         content = await file.read()
         content_str = content.decode()
+        logger.info(f"File contents length: {len(content_str)}")
         
+        terms = []
         if file.filename.endswith('.csv'):
             csv_file = StringIO(content_str)
             reader = csv.DictReader(csv_file)
             terms = [row for row in reader]
+            logger.info(f"Parsed CSV rows: {len(terms)}")
         else:  # JSON file
             terms = json.loads(content_str)
+            logger.info(f"Parsed JSON entries: {len(terms)}")
             
         if not terms:
             raise HTTPException(
@@ -189,22 +195,25 @@ async def upload_terms(
                 detail="File contains no valid terms"
             )
 
-        # Process terms in background
-        background_tasks.add_task(database.bulk_create_terms, terms)
+        # Process terms immediately instead of background
+        results = await database.bulk_create_terms(terms)
         
         return {
-            "message": f"Processing {len(terms)} terms in background",
-            "status": "processing"
+            "message": f"Processed {len(terms)} terms",
+            "status": "completed",
+            "results": results
         }
-    except json.JSONDecodeError:
+    except json.JSONDecodeError as e:
+        logger.error(f"JSON decode error: {e}")
         raise HTTPException(
             status_code=400,
-            detail="Invalid JSON format"
+            detail=f"Invalid JSON format: {str(e)}"
         )
-    except csv.Error:
+    except csv.Error as e:
+        logger.error(f"CSV parse error: {e}")
         raise HTTPException(
             status_code=400,
-            detail="Invalid CSV format"
+            detail=f"Invalid CSV format: {str(e)}"
         )
     except Exception as e:
         logger.error(f"Upload error: {e}")
