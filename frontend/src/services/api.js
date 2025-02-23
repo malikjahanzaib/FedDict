@@ -1,9 +1,9 @@
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://feddict-api.onrender.com';
 
-let authCredentials = null;
+let authCredentials = localStorage.getItem('authCredentials');
 
-export function setAuthCredentials(username, password) {
-  authCredentials = btoa(`${username}:${password}`);
+export function setAuthCredentials(credentials) {
+  authCredentials = credentials;
 }
 
 export function clearAuthCredentials() {
@@ -88,6 +88,8 @@ export async function getCategories() {
 }
 
 export async function verifyAuth() {
+  if (!authCredentials) return false;
+  
   try {
     const response = await fetchWithTimeout(
       `${API_BASE_URL}/verify-auth/`,
