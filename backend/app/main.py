@@ -11,13 +11,20 @@ from . import cleanup  # Add this import at the top
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
+from sqlalchemy import text
 
 models.Base.metadata.create_all(bind=engine)
 
-# Add this after models.Base.metadata.create_all(bind=engine)
-cleanup.cleanup_test_terms()
+# After models.Base.metadata.create_all(bind=engine)
+def is_database_empty(db_engine):
+    with db_engine.connect() as connection:
+        result = connection.execute(text("SELECT COUNT(*) FROM term"))
+        return result.scalar() == 0
 
-initial_data.init_db()
+# Initialize only if database is empty
+if is_database_empty(engine):
+    cleanup.cleanup_test_terms()
+    initial_data.init_db()
 
 app = FastAPI(title="FedDict API")
 
