@@ -15,14 +15,19 @@ from sqlalchemy import text
 
 models.Base.metadata.create_all(bind=engine)
 
-# After models.Base.metadata.create_all(bind=engine)
-def is_database_empty(db_engine):
-    with db_engine.connect() as connection:
-        result = connection.execute(text("SELECT COUNT(*) FROM term"))
-        return result.scalar() == 0
+def is_database_initialized(db_engine):
+    try:
+        with db_engine.connect() as connection:
+            # Check if we have any non-test terms (terms that don't start or end with '_')
+            result = connection.execute(
+                text("SELECT COUNT(*) FROM term WHERE term NOT LIKE '_%' AND term NOT LIKE '%_'")
+            )
+            return result.scalar() > 0
+    except:
+        return False
 
-# Initialize only if database is empty
-if is_database_empty(engine):
+# Only initialize if database is completely empty or only has test terms
+if not is_database_initialized(engine):
     cleanup.cleanup_test_terms()
     initial_data.init_db()
 
