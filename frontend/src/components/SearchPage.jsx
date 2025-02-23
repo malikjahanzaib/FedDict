@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { searchTerms, getCategories, getTerms } from '../services/api';
+import { searchTerms, getCategories, getTerms, API_BASE_URL } from '../services/api';
+
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://feddict-api.onrender.com';
 
 function SearchPage() {
   const [searchQuery, setSearchQuery] = useState('');
