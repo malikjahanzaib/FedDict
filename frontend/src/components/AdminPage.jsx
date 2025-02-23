@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { createTerm, getTerms, deleteTerm, updateTerm } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -19,11 +19,7 @@ function AdminPage() {
   const { logout } = useAuth();
   const navigate = useNavigate();
 
-  useEffect(() => {
-    fetchTerms();
-  }, [currentPage, fetchTerms]);
-
-  const fetchTerms = async () => {
+  const fetchTerms = useCallback(async () => {
     try {
       setLoading(true);
       const response = await getTerms(currentPage);
@@ -37,7 +33,11 @@ function AdminPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [currentPage]);
+
+  useEffect(() => {
+    fetchTerms();
+  }, [fetchTerms]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
