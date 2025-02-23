@@ -46,7 +46,8 @@ function SearchPage() {
         setCategories(categoriesData || []);
         setError(null);
       } catch (err) {
-        setError('Failed to load initial data');
+        console.error('Error:', err);
+        setError('Failed to load initial data. Please try again later.');
         setTerms([]);
         setCategories([]);
       } finally {

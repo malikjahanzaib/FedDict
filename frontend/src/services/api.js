@@ -24,13 +24,17 @@ const handleResponse = async (response, errorMessage) => {
 // Optimize API calls with better error handling
 export async function getTerms() {
   try {
-    const response = await fetch(`${API_BASE_URL}/terms/`, {
-      mode: 'cors',
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-      },
-    });
+    const response = await fetchWithTimeout(
+      `${API_BASE_URL}/terms/`,
+      {
+        mode: 'cors',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+        },
+        credentials: 'omit'
+      }
+    );
     return handleResponse(response, 'Failed to fetch terms');
   } catch (error) {
     console.error('Fetch error:', error);
@@ -55,6 +59,7 @@ export async function searchTerms(search = '', category = '', page = 1) {
           'Accept': 'application/json',
           'Content-Type': 'application/json',
         },
+        credentials: 'omit'
       }
     );
     return handleResponse(response, 'Failed to search terms');
