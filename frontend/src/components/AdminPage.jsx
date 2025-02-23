@@ -241,7 +241,7 @@ function AdminPage() {
     setSelectAll(!selectAll);
   };
 
-  const handleBulkDelete = async () => {
+  const handleBulkDelete = async (password, phrase) => {
     if (deleteType === 'selected' && selectedTerms.size === 0) {
       toast.error('No terms selected');
       return;
@@ -250,7 +250,7 @@ function AdminPage() {
     try {
       let response;
       if (deleteType === 'all') {
-        if (deleteConfirmPhrase !== 'DELETE ALL TERMS') {
+        if (phrase !== 'DELETE ALL TERMS') {
           toast.error('Please type the confirmation phrase exactly as shown');
           return;
         }
@@ -258,8 +258,10 @@ function AdminPage() {
         const today = new Date().toISOString().slice(0, 10).replace(/-/g, '');
         const confirmCode = `CONFIRM_DELETE_ALL_${today}`;
         
-        // Use the entered password for authentication
-        const authString = btoa(`admin:${deleteConfirmPassword}`);
+        // Use stored credentials for normal operations, but password param for delete all
+        const authString = deleteType === 'all' 
+          ? btoa(`admin:${password}`)
+          : localStorage.getItem('authCredentials');
         
         response = await fetch(`${API_BASE_URL}/admin/delete-all?confirmation=${confirmCode}`, {
           method: 'DELETE',
@@ -367,72 +369,95 @@ function AdminPage() {
     </div>
   );
 
-  const DeleteConfirmModal = () => (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-lg p-6 max-w-md w-full" onClick={(e) => e.stopPropagation()}>
-        <h3 className="text-xl font-bold mb-4 text-red-600">Confirm Delete</h3>
-        {deleteType === 'all' ? (
-          <>
+  const DeleteConfirmModal = () => {
+    // Add local state to handle input values
+    const [localPassword, setLocalPassword] = useState(deleteConfirmPassword);
+    const [localPhrase, setLocalPhrase] = useState(deleteConfirmPhrase);
+
+    // Update parent state when modal closes
+    useEffect(() => {
+      return () => {
+        setDeleteConfirmPassword(localPassword);
+        setDeleteConfirmPhrase(localPhrase);
+      };
+    }, [localPassword, localPhrase]);
+
+    return (
+      <div 
+        className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
+        onClick={() => {
+          setShowDeleteConfirm(false);
+          setDeleteType(null);
+        }}
+      >
+        <div 
+          className="bg-white rounded-lg p-6 max-w-md w-full" 
+          onClick={(e) => e.stopPropagation()}
+        >
+          <h3 className="text-xl font-bold mb-4 text-red-600">Confirm Delete</h3>
+          {deleteType === 'all' ? (
+            <>
+              <p className="mb-4 text-gray-700">
+                You are about to delete ALL terms from the database. This action cannot be undone.
+              </p>
+              <div className="space-y-4 mb-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Enter your admin password:
+                  </label>
+                  <input
+                    type="password"
+                    value={localPassword}
+                    onChange={(e) => setLocalPassword(e.target.value)}
+                    className="w-full border rounded p-2 focus:outline-none focus:ring-2 focus:ring-red-500"
+                    placeholder="Admin password"
+                    autoComplete="off"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Type "DELETE ALL TERMS" to confirm:
+                  </label>
+                  <input
+                    type="text"
+                    value={localPhrase}
+                    onChange={(e) => setLocalPhrase(e.target.value)}
+                    className="w-full border rounded p-2 focus:outline-none focus:ring-2 focus:ring-red-500"
+                    placeholder="DELETE ALL TERMS"
+                    autoComplete="off"
+                  />
+                </div>
+              </div>
+            </>
+          ) : (
             <p className="mb-4 text-gray-700">
-              You are about to delete ALL terms from the database. This action cannot be undone.
+              Are you sure you want to delete {selectedTerms.size} selected terms? This action cannot be undone.
             </p>
-            <div className="space-y-4 mb-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Enter your admin password:
-                </label>
-                <input
-                  type="password"
-                  value={deleteConfirmPassword}
-                  onChange={(e) => setDeleteConfirmPassword(e.target.value)}
-                  className="w-full border rounded p-2 focus:outline-none focus:ring-2 focus:ring-red-500"
-                  placeholder="Admin password"
-                  autoComplete="off"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Type "DELETE ALL TERMS" to confirm:
-                </label>
-                <input
-                  type="text"
-                  value={deleteConfirmPhrase}
-                  onChange={(e) => setDeleteConfirmPhrase(e.target.value)}
-                  className="w-full border rounded p-2 focus:outline-none focus:ring-2 focus:ring-red-500"
-                  placeholder="DELETE ALL TERMS"
-                  autoComplete="off"
-                />
-              </div>
-            </div>
-          </>
-        ) : (
-          <p className="mb-4 text-gray-700">
-            Are you sure you want to delete {selectedTerms.size} selected terms? This action cannot be undone.
-          </p>
-        )}
-        <div className="flex justify-end space-x-4">
-          <button
-            onClick={() => {
-              setShowDeleteConfirm(false);
-              setDeleteType(null);
-              setDeleteConfirmPassword('');
-              setDeleteConfirmPhrase('');
-            }}
-            className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleBulkDelete}
-            disabled={deleteType === 'all' && (deleteConfirmPhrase !== 'DELETE ALL TERMS' || !deleteConfirmPassword)}
-            className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 disabled:bg-gray-300"
-          >
-            Confirm Delete
-          </button>
+          )}
+          <div className="flex justify-end space-x-4">
+            <button
+              onClick={() => {
+                setShowDeleteConfirm(false);
+                setDeleteType(null);
+                setDeleteConfirmPassword('');
+                setDeleteConfirmPhrase('');
+              }}
+              className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={() => handleBulkDelete(localPassword, localPhrase)}
+              disabled={deleteType === 'all' && (localPhrase !== 'DELETE ALL TERMS' || !localPassword)}
+              className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 disabled:bg-gray-300"
+            >
+              Confirm Delete
+            </button>
+          </div>
         </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   if (loading) {
     return (
