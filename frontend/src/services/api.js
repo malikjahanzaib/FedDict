@@ -22,16 +22,16 @@ const handleResponse = async (response, errorMessage) => {
 };
 
 // Optimize API calls with better error handling
-export async function getTerms() {
+export async function getTerms(page = 1) {
   try {
     const response = await fetchWithTimeout(
-      `${API_BASE_URL}/terms/`,
+      `${API_BASE_URL}/terms/?page=${page}&per_page=10`,
       {
         mode: 'cors',
         headers: {
           'Accept': 'application/json',
           'Content-Type': 'application/json',
-        },
+        }
       }
     );
     return handleResponse(response, 'Failed to fetch terms');
@@ -42,12 +42,11 @@ export async function getTerms() {
 }
 
 export async function searchTerms(search = '', category = '', page = 1) {
-  const params = new URLSearchParams({
-    search: search,
-    category: category,
-    page: page,
-    per_page: 10
-  });
+  const params = new URLSearchParams();
+  if (search) params.append('search', search);
+  if (category) params.append('category', category);
+  params.append('page', page);
+  params.append('per_page', 10);
   
   try {
     const response = await fetchWithTimeout(
@@ -62,9 +61,7 @@ export async function searchTerms(search = '', category = '', page = 1) {
     );
     return handleResponse(response, 'Failed to search terms');
   } catch (error) {
-    if (error.name === 'AbortError') {
-      throw new Error('Request timed out');
-    }
+    console.error('Search error:', error);
     throw error;
   }
 }

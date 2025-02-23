@@ -82,13 +82,15 @@ async def get_terms(
         query = query.filter(models.Term.category == category)
     
     total = query.count()
+    total_pages = (total + per_page - 1) // per_page
+    
     terms = query.offset(skip).limit(per_page).all()
     
     return {
         "items": terms,
         "total": total,
         "page": page,
-        "pages": (total + per_page - 1) // per_page
+        "pages": total_pages
     }
 
 @app.post("/terms/", response_model=schemas.Term)

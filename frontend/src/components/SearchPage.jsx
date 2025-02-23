@@ -59,20 +59,18 @@ function SearchPage() {
   }, []);
 
   useEffect(() => {
-    if (!debouncedSearchQuery) {
-      setTerms([]);
-      setTotalPages(1);
-      setTotalItems(0);
-      return;
-    }
-    
     const fetchResults = async () => {
       setIsSearching(true);
       try {
-        const response = await searchTerms(debouncedSearchQuery, selectedCategory, currentPage);
-        setTerms(response.items);
-        setTotalPages(response.pages);
-        setTotalItems(response.total);
+        let response;
+        if (debouncedSearchQuery || selectedCategory) {
+          response = await searchTerms(debouncedSearchQuery, selectedCategory, currentPage);
+        } else {
+          response = await getTerms(currentPage);
+        }
+        setTerms(response.items || []);
+        setTotalPages(response.pages || 1);
+        setTotalItems(response.total || 0);
         setError(null);
       } catch (error) {
         console.error('Search error:', error);
@@ -128,6 +126,12 @@ function SearchPage() {
     </div>
   );
 
+  // Update category selection handler
+  const handleCategoryChange = (e) => {
+    setSelectedCategory(e.target.value);
+    setCurrentPage(1); // Reset to first page when changing category
+  };
+
   if (error) {
     return (
       <div className="text-center text-red-600 mt-8">
@@ -171,7 +175,7 @@ function SearchPage() {
         <select
           className="mt-4 p-2 rounded-lg border border-gray-300"
           value={selectedCategory}
-          onChange={(e) => setSelectedCategory(e.target.value)}
+          onChange={handleCategoryChange}
         >
           <option value="">All Categories</option>
           {categories.map((category) => (
