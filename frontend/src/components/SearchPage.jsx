@@ -59,7 +59,12 @@ function SearchPage() {
   }, []);
 
   useEffect(() => {
-    if (!debouncedSearchQuery) return;
+    if (!debouncedSearchQuery) {
+      setTerms([]);
+      setTotalPages(1);
+      setTotalItems(0);
+      return;
+    }
     
     const fetchResults = async () => {
       setIsSearching(true);
@@ -68,8 +73,11 @@ function SearchPage() {
         setTerms(response.items);
         setTotalPages(response.pages);
         setTotalItems(response.total);
+        setError(null);
       } catch (error) {
+        console.error('Search error:', error);
         setError('Search failed. Please try again.');
+        setTerms([]);
       } finally {
         setIsSearching(false);
       }
@@ -83,10 +91,12 @@ function SearchPage() {
     if (searchQuery.length >= 2) {
       const timeoutId = setTimeout(async () => {
         try {
-          const results = await searchTerms(searchQuery);
-          setSuggestions(results.map(r => r.term));
+          const response = await searchTerms(searchQuery);
+          // Make sure we're getting items from the paginated response
+          setSuggestions(response.items.map(r => r.term));
         } catch (error) {
           console.error('Failed to fetch suggestions:', error);
+          setSuggestions([]);
         }
       }, 300);
       return () => clearTimeout(timeoutId);

@@ -17,13 +17,17 @@ def get_admin_credentials(credentials: HTTPBasicCredentials = Depends(security))
     correct_username = os.getenv("ADMIN_USERNAME", "admin")
     correct_password = os.getenv("ADMIN_PASSWORD", "admin")
     
+    print(f"Attempting login with: {credentials.username}")  # Debug log
+    
     is_correct_username = secrets.compare_digest(credentials.username, correct_username)
     is_correct_password = secrets.compare_digest(credentials.password, correct_password)
     
     if not (is_correct_username and is_correct_password):
+        print("Authentication failed")  # Debug log
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect username or password",
             headers={"WWW-Authenticate": "Basic"},
         )
+    print("Authentication successful")  # Debug log
     return credentials.username 

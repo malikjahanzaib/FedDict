@@ -57,8 +57,7 @@ export async function searchTerms(search = '', category = '', page = 1) {
         headers: {
           'Accept': 'application/json',
           'Content-Type': 'application/json',
-        },
-        credentials: 'omit'
+        }
       }
     );
     return handleResponse(response, 'Failed to search terms');
@@ -93,11 +92,18 @@ export async function getCategories() {
 
 export async function verifyAuth() {
   try {
-    const response = await fetch(`${API_BASE_URL}/verify-auth/`, {
-      headers: {
-        'Authorization': `Basic ${authCredentials}`
+    const response = await fetchWithTimeout(
+      `${API_BASE_URL}/verify-auth/`,
+      {
+        mode: 'cors',
+        credentials: 'include',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+          'Authorization': `Basic ${authCredentials}`
+        }
       }
-    });
+    );
     
     if (response.ok) {
       const data = await response.json();
@@ -105,6 +111,7 @@ export async function verifyAuth() {
     }
     return false;
   } catch (error) {
+    console.error('Auth error:', error);
     return false;
   }
 }
@@ -115,6 +122,8 @@ export async function createTerm(termData) {
       `${API_BASE_URL}/terms/`,
       {
         method: 'POST',
+        mode: 'cors',
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Basic ${authCredentials}`
