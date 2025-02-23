@@ -6,6 +6,7 @@ from fastapi import HTTPException
 import logging
 from datetime import datetime, timedelta
 from functools import lru_cache
+from . import models_mongo
 
 # Initialize logger
 logger = logging.getLogger(__name__)
@@ -158,7 +159,11 @@ async def bulk_create_terms(terms: list):
         for term_data in terms:
             try:
                 # Validate term data
-                term = models_mongo.TermCreate(**term_data)
+                term = models_mongo.TermCreate(
+                    term=term_data['term'],
+                    definition=term_data['definition'],
+                    category=term_data['category']
+                )
                 
                 # Check for duplicates
                 existing = await db.terms.find_one({
@@ -171,12 +176,12 @@ async def bulk_create_terms(terms: list):
                     continue
                 
                 # Create term
-                await db.terms.insert_one(term.dict())
+                await db.terms.insert_one(term.model_dump())
                 results["success"] += 1
                 
             except Exception as e:
                 results["failed"] += 1
-                results["errors"].append(f"Error processing term: {str(e)}")
+                results["errors"].append(f"Error processing term '{term_data.get('term', 'unknown')}': {str(e)}")
             
             results["processed"] += 1
         
