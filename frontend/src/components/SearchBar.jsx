@@ -19,6 +19,14 @@ const handleSuggestionClick = async (suggestion) => {
   }
 };
 
+// Update the input's onBlur handler
+const handleBlur = () => {
+  // Use setTimeout to allow click events to fire first
+  setTimeout(() => {
+    setShowSuggestions(false);
+  }, 200);
+};
+
 // Update the suggestions fetch
 const fetchSuggestions = async (value) => {
   if (!value.trim()) {
@@ -38,4 +46,34 @@ const fetchSuggestions = async (value) => {
   } catch (error) {
     console.error('Error fetching suggestions:', error);
   }
-}; 
+};
+
+return (
+  <div className="relative w-full">
+    <input
+      type="text"
+      value={searchTerm}
+      onChange={handleSearchChange}
+      onFocus={() => searchTerm && fetchSuggestions(searchTerm)}
+      onBlur={handleBlur}
+      className="w-full p-2 border rounded"
+      placeholder="Search terms..."
+    />
+    {showSuggestions && suggestions.length > 0 && (
+      <div className="absolute z-10 w-full bg-white border rounded-b shadow-lg">
+        {suggestions.map((suggestion, index) => (
+          <div
+            key={suggestion.id || index}
+            className="p-2 hover:bg-gray-100 cursor-pointer"
+            onMouseDown={(e) => {
+              e.preventDefault(); // Prevent blur from firing before click
+              handleSuggestionClick(suggestion);
+            }}
+          >
+            {suggestion.term}
+          </div>
+        ))}
+      </div>
+    )}
+  </div>
+); 

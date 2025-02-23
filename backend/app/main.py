@@ -13,6 +13,7 @@ from datetime import datetime
 import csv
 import json
 from io import StringIO
+from pydantic import BaseModel
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -239,22 +240,25 @@ async def cleanup_duplicates(username: str = Depends(get_admin_credentials)):
         "status": "completed"
     }
 
+class BulkDeleteRequest(BaseModel):
+    term_ids: list[str]
+
 @app.post("/admin/bulk-delete")
 async def bulk_delete_terms(
-    term_ids: list[str],
+    request: BulkDeleteRequest,
     username: str = Depends(get_admin_credentials)
 ):
     """Delete multiple terms by their IDs with confirmation"""
     try:
         # Get the terms to show what will be deleted
         terms = []
-        for term_id in term_ids:
+        for term_id in request.term_ids:
             term = await database.get_term(term_id)
             if term:
                 terms.append(term)
         
         # Delete the terms
-        deleted = await database.bulk_delete_terms(term_ids)
+        deleted = await database.bulk_delete_terms(request.term_ids)
         
         return {
             "message": f"Successfully deleted {deleted} terms",
