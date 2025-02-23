@@ -1,25 +1,64 @@
 import os
-from sqlalchemy import create_engine
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
+import motor.motor_asyncio
+from bson import ObjectId
+from typing import Optional
 
-# For local development
-SQLALCHEMY_DATABASE_URL = "sqlite:///./feddict.db"
+# MongoDB connection string (you'll get this from MongoDB Atlas)
+MONGODB_URL = os.getenv("MONGODB_URL", "mongodb+srv://<username>:<password>@<cluster>.mongodb.net/feddict?retryWrites=true&w=majority")
 
-# For production on Render
-if os.getenv("RENDER"):
-    SQLALCHEMY_DATABASE_URL = "sqlite:////opt/render/project/src/feddict.db"
+# Create Motor client
+client = motor.motor_asyncio.AsyncIOMotorClient(MONGODB_URL)
+db = client.feddict  # database name
 
-engine = create_engine(
-    SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False}
-)
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+# Helper function to convert MongoDB _id to string
+def fix_id(obj):
+    if isinstance(obj, dict) and '_id' in obj:
+        obj['id'] = str(obj['_id'])
+        del obj['_id']
+    return obj
 
-Base = declarative_base()
+# Database operations
+async def get_terms(skip: int = 0, limit: int = 10, search: Optional[str] = None, category: Optional[str] = None):
+    query = {}
+    if search:
+        query['$or'] = [
+            {'term': {'$regex': search, '$options': 'i'}},
+            {'definition': {'$regex': search, '$options': 'i'}}
+        ]
+    if category:
+        query['category'] = category
 
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close() 
+    cursor = db.terms.find(query).skip(skip).limit(limit)
+    terms = await cursor.to_list(length=limit)
+    total = await db.terms.count_documents(query)
+    
+    return {
+        'items': [fix_id(term) for term in terms],
+        'total': total,
+        'page': (skip // limit) + 1,
+        'pages': (total + limit - 1) // limit
+    }
+
+async def create_term(term_data: dict):
+    result = await db.terms.insert_one(term_data)
+    created_term = await db.terms.find_one({'_id': result.inserted_id})
+    return fix_id(created_term)
+
+async def get_term(term_id: str):
+    term = await db.terms.find_one({'_id': ObjectId(term_id)})
+    return fix_id(term) if term else None
+
+async def update_term(term_id: str, term_data: dict):
+    await db.terms.update_one(
+        {'_id': ObjectId(term_id)},
+        {'$set': term_data}
+    )
+    updated_term = await db.terms.find_one({'_id': ObjectId(term_id)})
+    return fix_id(updated_term)
+
+async def delete_term(term_id: str):
+    result = await db.terms.delete_one({'_id': ObjectId(term_id)})
+    return result.deleted_count > 0
+
+async def get_categories():
+    return await db.terms.distinct('category') 

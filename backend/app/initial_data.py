@@ -1,7 +1,12 @@
-from .database import SessionLocal
+from . import database
 from .models import Term
 
 initial_terms = [
+    {
+        "term": "BAFO",
+        "definition": "Best and Final Offer",
+        "category": "Contracting"
+    },
     {
         "term": "RFP",
         "definition": "Request for Proposal - A document that announces and details a project, as well as solicits bids from contractors who will help complete the project.",
@@ -24,21 +29,6 @@ initial_terms = [
     }
 ]
 
-def init_db():
-    db = SessionLocal()
-    try:
-        # Check if we already have terms
-        existing_count = db.query(Term).count()
-        if existing_count == 0:
-            for term_data in initial_terms:
-                term = Term(**term_data)
-                db.add(term)
-            db.commit()
-            print("Initial data loaded successfully")
-        else:
-            print("Database already contains data")
-    except Exception as e:
-        print(f"Error loading initial data: {e}")
-        db.rollback()
-    finally:
-        db.close() 
+async def init_db():
+    for term_data in initial_terms:
+        await database.create_term(term_data) 
