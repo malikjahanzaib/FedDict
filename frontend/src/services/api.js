@@ -10,6 +10,8 @@ export function clearAuthCredentials() {
   authCredentials = null;
 }
 
+export { API_BASE_URL };
+
 export async function getTerms() {
   try {
     const response = await fetch(`${API_BASE_URL}/terms/`, {
