@@ -56,7 +56,12 @@ async def get_terms(
     return await database.get_terms(skip, per_page, search, category)
 
 @app.post("/terms/")
-async def create_term(term: models_mongo.TermCreate, username: str = Depends(get_admin_credentials)):
+@limiter.limit("10/minute")
+async def create_term(
+    request: Request,
+    term: models_mongo.TermCreate,
+    username: str = Depends(get_admin_credentials)
+):
     return await database.create_term(term.dict())
 
 @app.get("/terms/{term_id}", response_model=models_mongo.Term)

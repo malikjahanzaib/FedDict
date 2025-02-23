@@ -2,6 +2,7 @@ import os
 import motor.motor_asyncio
 from bson import ObjectId
 from typing import Optional
+from fastapi import HTTPException
 
 # MongoDB connection string (you'll get this from MongoDB Atlas)
 MONGODB_URL = os.getenv("MONGODB_URL", "mongodb+srv://<username>:<password>@<cluster>.mongodb.net/feddict?retryWrites=true&w=majority")
@@ -40,6 +41,13 @@ async def get_terms(skip: int = 0, limit: int = 10, search: Optional[str] = None
     }
 
 async def create_term(term_data: dict):
+    # Check if term already exists (case-insensitive)
+    existing = await db.terms.find_one({
+        'term': {'$regex': f'^{term_data["term"]}$', '$options': 'i'}
+    })
+    if existing:
+        raise HTTPException(status_code=400, detail="Term already exists")
+    
     result = await db.terms.insert_one(term_data)
     created_term = await db.terms.find_one({'_id': result.inserted_id})
     return fix_id(created_term)
@@ -61,4 +69,12 @@ async def delete_term(term_id: str):
     return result.deleted_count > 0
 
 async def get_categories():
-    return await db.terms.distinct('category') 
+    return await db.terms.distinct('category')
+
+async def get_suggestions(search: str, limit: int = 5):
+    query = {
+        'term': {'$regex': f'^{search}', '$options': 'i'}
+    }
+    cursor = db.terms.find(query).limit(limit)
+    suggestions = await cursor.to_list(length=limit)
+    return [term['term'] for term in suggestions] 
