@@ -257,10 +257,14 @@ function AdminPage() {
 
         const today = new Date().toISOString().slice(0, 10).replace(/-/g, '');
         const confirmCode = `CONFIRM_DELETE_ALL_${today}`;
+        
+        // Use the entered password for authentication
+        const authString = btoa(`admin:${deleteConfirmPassword}`);
+        
         response = await fetch(`${API_BASE_URL}/admin/delete-all?confirmation=${confirmCode}`, {
           method: 'DELETE',
           headers: {
-            'Authorization': `Basic ${btoa(`admin:${deleteConfirmPassword}`)}`,
+            'Authorization': `Basic ${authString}`
           }
         });
       } else {
@@ -276,6 +280,9 @@ function AdminPage() {
 
       const data = await response.json();
       if (!response.ok) {
+        if (response.status === 401) {
+          throw new Error('Incorrect admin password');
+        }
         throw new Error(data.detail || 'Delete failed');
       }
 
@@ -362,7 +369,7 @@ function AdminPage() {
 
   const DeleteConfirmModal = () => (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-lg p-6 max-w-md w-full">
+      <div className="bg-white rounded-lg p-6 max-w-md w-full" onClick={(e) => e.stopPropagation()}>
         <h3 className="text-xl font-bold mb-4 text-red-600">Confirm Delete</h3>
         {deleteType === 'all' ? (
           <>
@@ -378,8 +385,9 @@ function AdminPage() {
                   type="password"
                   value={deleteConfirmPassword}
                   onChange={(e) => setDeleteConfirmPassword(e.target.value)}
-                  className="w-full border rounded p-2"
+                  className="w-full border rounded p-2 focus:outline-none focus:ring-2 focus:ring-red-500"
                   placeholder="Admin password"
+                  autoComplete="off"
                 />
               </div>
               <div>
@@ -390,8 +398,9 @@ function AdminPage() {
                   type="text"
                   value={deleteConfirmPhrase}
                   onChange={(e) => setDeleteConfirmPhrase(e.target.value)}
-                  className="w-full border rounded p-2"
+                  className="w-full border rounded p-2 focus:outline-none focus:ring-2 focus:ring-red-500"
                   placeholder="DELETE ALL TERMS"
+                  autoComplete="off"
                 />
               </div>
             </div>
