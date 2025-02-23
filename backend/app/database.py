@@ -65,12 +65,19 @@ async def get_terms(
         query['category'] = category
 
     # Validate sort field
-    valid_fields = {'term', 'definition', 'category'}
-    if sort_field not in valid_fields:
-        sort_field = 'term'
-
-    # Create sort configuration
+    valid_fields = {
+        'term': 'term',
+        'category': 'category',
+        'definition': 'definition',
+        'created': '_id'  # MongoDB ObjectId contains creation timestamp
+    }
+    
+    sort_field = valid_fields.get(sort_field, 'term')
     sort_config = [(sort_field, 1 if sort_order == 'asc' else -1)]
+    
+    # Add secondary sort by term for consistent ordering
+    if sort_field != 'term':
+        sort_config.append(('term', 1))
 
     try:
         cursor = db.terms.find(query).sort(sort_config).skip(skip).limit(limit)
@@ -81,7 +88,8 @@ async def get_terms(
             'items': [fix_id(term) for term in terms],
             'total': total,
             'page': (skip // limit) + 1,
-            'pages': (total + limit - 1) // limit
+            'pages': (total + limit - 1) // limit,
+            'categories': await get_categories()  # Include categories in response
         }
     except Exception as e:
         logger.error(f"Error in get_terms: {e}")
