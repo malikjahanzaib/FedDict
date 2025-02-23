@@ -254,4 +254,24 @@ async def cleanup_duplicates():
         
     except Exception as e:
         logger.error(f"Error cleaning up duplicates: {e}")
+        raise
+
+async def bulk_delete_terms(term_ids: list[str]) -> int:
+    """Delete multiple terms by their IDs"""
+    try:
+        # Convert string IDs to ObjectIds
+        object_ids = [ObjectId(id) for id in term_ids]
+        result = await db.terms.delete_many({'_id': {'$in': object_ids}})
+        return result.deleted_count
+    except Exception as e:
+        logger.error(f"Bulk delete error: {e}")
+        raise
+
+async def delete_all_terms() -> int:
+    """Delete all terms from the database"""
+    try:
+        result = await db.terms.delete_many({})
+        return result.deleted_count
+    except Exception as e:
+        logger.error(f"Delete all error: {e}")
         raise 

@@ -20,6 +20,9 @@ function AdminPage() {
   const navigate = useNavigate();
   const [stats, setStats] = useState(null);
   const [uploading, setUploading] = useState(false);
+  const [selectedTerms, setSelectedTerms] = useState(new Set());
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteType, setDeleteType] = useState(null); // 'selected' or 'all'
 
   // Get auth credentials from localStorage
   const authCredentials = localStorage.getItem('authCredentials');
@@ -192,6 +195,84 @@ function AdminPage() {
     }
   };
 
+  const handleCleanupDuplicates = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/admin/cleanup-duplicates`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Basic ${localStorage.getItem('authCredentials')}`
+        }
+      });
+
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.detail || 'Failed to cleanup duplicates');
+      }
+
+      toast.success(data.message);
+      fetchTerms(); // Refresh the terms list
+    } catch (error) {
+      console.error('Cleanup error:', error);
+      toast.error(error.message || 'Failed to cleanup duplicates');
+    }
+  };
+
+  const handleTermSelect = (termId) => {
+    const newSelected = new Set(selectedTerms);
+    if (newSelected.has(termId)) {
+      newSelected.delete(termId);
+    } else {
+      newSelected.add(termId);
+    }
+    setSelectedTerms(newSelected);
+  };
+
+  const handleBulkDelete = async () => {
+    if (deleteType === 'selected' && selectedTerms.size === 0) {
+      toast.error('No terms selected');
+      return;
+    }
+
+    try {
+      let response;
+      if (deleteType === 'all') {
+        const today = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+        const confirmCode = `CONFIRM_DELETE_ALL_${today}`;
+        response = await fetch(`${API_BASE_URL}/admin/delete-all?confirmation=${confirmCode}`, {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Basic ${localStorage.getItem('authCredentials')}`
+          }
+        });
+      } else {
+        response = await fetch(`${API_BASE_URL}/admin/bulk-delete`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Basic ${localStorage.getItem('authCredentials')}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ term_ids: Array.from(selectedTerms) })
+        });
+      }
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.detail || 'Delete failed');
+      }
+
+      toast.success(data.message);
+      setSelectedTerms(new Set());
+      fetchTerms();
+    } catch (error) {
+      console.error('Delete error:', error);
+      toast.error(error.message || 'Failed to delete terms');
+    } finally {
+      setShowDeleteConfirm(false);
+      setDeleteType(null);
+    }
+  };
+
   const Pagination = () => (
     <div className="flex justify-center mt-4 space-x-2">
       <button
@@ -255,6 +336,37 @@ function AdminPage() {
       <p className="mt-2 text-sm text-gray-600">
         Upload CSV or JSON file with columns: term, definition, category
       </p>
+    </div>
+  );
+
+  const DeleteConfirmModal = () => (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-lg p-6 max-w-md w-full">
+        <h3 className="text-xl font-bold mb-4">Confirm Delete</h3>
+        <p className="mb-4">
+          {deleteType === 'all' 
+            ? 'Are you sure you want to delete ALL terms? This action cannot be undone.'
+            : `Are you sure you want to delete ${selectedTerms.size} selected terms? This action cannot be undone.`
+          }
+        </p>
+        <div className="flex justify-end space-x-4">
+          <button
+            onClick={() => {
+              setShowDeleteConfirm(false);
+              setDeleteType(null);
+            }}
+            className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleBulkDelete}
+            className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
+          >
+            Confirm Delete
+          </button>
+        </div>
+      </div>
     </div>
   );
 
@@ -373,6 +485,37 @@ function AdminPage() {
 
       <StatsDisplay />
       <BulkUpload />
+
+      <button
+        onClick={handleCleanupDuplicates}
+        className="px-4 py-2 bg-yellow-500 text-white rounded hover:bg-yellow-600"
+      >
+        Clean Up Duplicates
+      </button>
+
+      <div className="mb-4 flex space-x-4">
+        <button
+          onClick={() => {
+            setDeleteType('selected');
+            setShowDeleteConfirm(true);
+          }}
+          disabled={selectedTerms.size === 0}
+          className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 disabled:bg-gray-300"
+        >
+          Delete Selected ({selectedTerms.size})
+        </button>
+        <button
+          onClick={() => {
+            setDeleteType('all');
+            setShowDeleteConfirm(true);
+          }}
+          className="px-4 py-2 bg-red-700 text-white rounded hover:bg-red-800"
+        >
+          Delete All Terms
+        </button>
+      </div>
+
+      {showDeleteConfirm && <DeleteConfirmModal />}
     </div>
   );
 }

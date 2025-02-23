@@ -239,6 +239,59 @@ async def cleanup_duplicates(username: str = Depends(get_admin_credentials)):
         "status": "completed"
     }
 
+@app.post("/admin/bulk-delete")
+async def bulk_delete_terms(
+    term_ids: list[str],
+    username: str = Depends(get_admin_credentials)
+):
+    """Delete multiple terms by their IDs with confirmation"""
+    try:
+        # Get the terms to show what will be deleted
+        terms = []
+        for term_id in term_ids:
+            term = await database.get_term(term_id)
+            if term:
+                terms.append(term)
+        
+        # Delete the terms
+        deleted = await database.bulk_delete_terms(term_ids)
+        
+        return {
+            "message": f"Successfully deleted {deleted} terms",
+            "deleted_terms": terms
+        }
+    except Exception as e:
+        logger.error(f"Bulk delete error: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to delete terms: {str(e)}"
+        )
+
+@app.delete("/admin/delete-all")
+async def delete_all_terms(
+    confirmation: str,
+    username: str = Depends(get_admin_credentials)
+):
+    """Delete all terms from the database with strict confirmation"""
+    if confirmation != f"CONFIRM_DELETE_ALL_{datetime.now().strftime('%Y%m%d')}":
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid confirmation code. Use CONFIRM_DELETE_ALL_YYYYMMDD"
+        )
+    
+    try:
+        count = await database.delete_all_terms()
+        return {
+            "message": f"Successfully deleted all {count} terms",
+            "deleted_count": count
+        }
+    except Exception as e:
+        logger.error(f"Delete all error: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to delete all terms: {str(e)}"
+        )
+
 @app.exception_handler(HTTPException)
 async def custom_http_exception_handler(request, exc):
     return JSONResponse(
