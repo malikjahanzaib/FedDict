@@ -6,13 +6,11 @@ function SearchPage() {
   const [selectedCategory, setSelectedCategory] = useState('');
   const [terms, setTerms] = useState([]);
   const [categories, setCategories] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [suggestions, setSuggestions] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const [totalItems, setTotalItems] = useState(0);
 
   const useDebounce = (value, delay) => {
     const [debouncedValue, setDebouncedValue] = useState(value);
@@ -35,14 +33,12 @@ function SearchPage() {
   useEffect(() => {
     const fetchInitialData = async () => {
       try {
-        setLoading(true);
         const [termsResponse, categoriesData] = await Promise.all([
           getTerms(),
           getCategories()
         ]);
         setTerms(termsResponse.items || []);
         setTotalPages(termsResponse.pages || 1);
-        setTotalItems(termsResponse.total || 0);
         setCategories(categoriesData || []);
         setError(null);
       } catch (err) {
@@ -50,8 +46,6 @@ function SearchPage() {
         setError('Failed to load initial data. Please try again later.');
         setTerms([]);
         setCategories([]);
-      } finally {
-        setLoading(false);
       }
     };
 
@@ -70,7 +64,6 @@ function SearchPage() {
         }
         setTerms(response.items || []);
         setTotalPages(response.pages || 1);
-        setTotalItems(response.total || 0);
         setError(null);
       } catch (error) {
         console.error('Search error:', error);

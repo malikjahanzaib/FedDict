@@ -6,8 +6,6 @@ import AdminPage from './components/AdminPage';
 import Login from './components/Login';
 import ProtectedRoute from './components/ProtectedRoute';
 import { AuthProvider } from './contexts/AuthContext';
-import { ToastContainer, toast } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';
 import ErrorBoundary from './components/ErrorBoundary';
 
 function App() {
@@ -32,7 +30,6 @@ function App() {
               </Routes>
             </ErrorBoundary>
           </div>
-          <ToastContainer position="bottom-right" />
         </div>
       </Router>
     </AuthProvider>

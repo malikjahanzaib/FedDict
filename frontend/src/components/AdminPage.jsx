@@ -11,7 +11,6 @@ function AdminPage() {
   const [selectedTerm, setSelectedTerm] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const [totalItems, setTotalItems] = useState(0);
   const [formData, setFormData] = useState({
     term: '',
     definition: '',
@@ -22,7 +21,7 @@ function AdminPage() {
 
   useEffect(() => {
     fetchTerms();
-  }, [currentPage]);
+  }, [currentPage, fetchTerms]);
 
   const fetchTerms = async () => {
     try {
@@ -30,7 +29,6 @@ function AdminPage() {
       const response = await getTerms(currentPage);
       setTerms(response.items || []);
       setTotalPages(response.pages || 1);
-      setTotalItems(response.total || 0);
       setError(null);
     } catch (err) {
       console.error('Error fetching terms:', err);
