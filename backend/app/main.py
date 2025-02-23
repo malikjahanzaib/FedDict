@@ -21,10 +21,13 @@ app = FastAPI(title="FedDict API")
 # Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allow all origins temporarily for debugging
+    allow_origins=[
+        "http://localhost:3000",  # Local development
+        "https://feddict.vercel.app",  # Your Vercel deployment URL
+    ],
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE"],  # Specify allowed methods
+    allow_headers=["*"],  # You can specify headers if needed
 )
 
 @app.get("/")
