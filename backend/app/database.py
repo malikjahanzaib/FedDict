@@ -3,13 +3,31 @@ import motor.motor_asyncio
 from bson import ObjectId
 from typing import Optional
 from fastapi import HTTPException
+import logging
 
-# MongoDB connection string (you'll get this from MongoDB Atlas)
-MONGODB_URL = os.getenv("MONGODB_URL", "mongodb+srv://<username>:<password>@<cluster>.mongodb.net/feddict?retryWrites=true&w=majority")
+# Get MongoDB URL from environment variable
+MONGODB_URL = os.getenv("MONGODB_URL")
+if not MONGODB_URL:
+    raise ValueError(
+        "No MongoDB URL found. "
+        "Make sure MONGODB_URL environment variable is set"
+    )
 
-# Create Motor client
-client = motor.motor_asyncio.AsyncIOMotorClient(MONGODB_URL)
-db = client.feddict  # database name
+# Create Motor client with connection pooling and timeouts
+client = motor.motor_asyncio.AsyncIOMotorClient(
+    MONGODB_URL,
+    serverSelectionTimeoutMS=5000,
+    connectTimeoutMS=10000
+)
+
+# Verify database connection on startup
+async def verify_database():
+    try:
+        await client.admin.command('ping')
+        logger.info("Successfully connected to MongoDB")
+    except Exception as e:
+        logger.error(f"Could not connect to MongoDB: {e}")
+        raise
 
 # Helper function to convert MongoDB _id to string
 def fix_id(obj):

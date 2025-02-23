@@ -15,6 +15,7 @@ app = FastAPI(title="FedDict API")
 
 @app.on_event("startup")
 async def startup_event():
+    await database.verify_database()
     await initial_data.init_db()
 
 # Configure CORS

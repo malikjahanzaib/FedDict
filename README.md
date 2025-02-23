@@ -124,4 +124,14 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - FastAPI documentation
 - React documentation
 - TailwindCSS documentation
-```
+
+## Database
+- MongoDB Atlas (Cloud hosted)
+- Persistent data storage
+- Automatic backups
+- Data validation
+- Unique term constraints
+
+## Environment Variables
+Required environment variables:
+- `MONGODB_URL`: MongoDB connection string
