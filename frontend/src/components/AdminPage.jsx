@@ -23,6 +23,9 @@ function AdminPage() {
   const [selectedTerms, setSelectedTerms] = useState(new Set());
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteType, setDeleteType] = useState(null); // 'selected' or 'all'
+  const [selectAll, setSelectAll] = useState(false);
+  const [deleteConfirmPassword, setDeleteConfirmPassword] = useState('');
+  const [deleteConfirmPhrase, setDeleteConfirmPhrase] = useState('');
 
   // Get auth credentials from localStorage
   const authCredentials = localStorage.getItem('authCredentials');
@@ -228,6 +231,16 @@ function AdminPage() {
     setSelectedTerms(newSelected);
   };
 
+  const handleSelectAll = () => {
+    if (selectAll) {
+      setSelectedTerms(new Set());
+    } else {
+      const newSelected = new Set(terms.map(term => term.id));
+      setSelectedTerms(newSelected);
+    }
+    setSelectAll(!selectAll);
+  };
+
   const handleBulkDelete = async () => {
     if (deleteType === 'selected' && selectedTerms.size === 0) {
       toast.error('No terms selected');
@@ -237,12 +250,17 @@ function AdminPage() {
     try {
       let response;
       if (deleteType === 'all') {
+        if (deleteConfirmPhrase !== 'DELETE ALL TERMS') {
+          toast.error('Please type the confirmation phrase exactly as shown');
+          return;
+        }
+
         const today = new Date().toISOString().slice(0, 10).replace(/-/g, '');
         const confirmCode = `CONFIRM_DELETE_ALL_${today}`;
         response = await fetch(`${API_BASE_URL}/admin/delete-all?confirmation=${confirmCode}`, {
           method: 'DELETE',
           headers: {
-            'Authorization': `Basic ${localStorage.getItem('authCredentials')}`
+            'Authorization': `Basic ${btoa(`admin:${deleteConfirmPassword}`)}`,
           }
         });
       } else {
@@ -263,6 +281,7 @@ function AdminPage() {
 
       toast.success(data.message);
       setSelectedTerms(new Set());
+      setSelectAll(false);
       fetchTerms();
     } catch (error) {
       console.error('Delete error:', error);
@@ -270,6 +289,8 @@ function AdminPage() {
     } finally {
       setShowDeleteConfirm(false);
       setDeleteType(null);
+      setDeleteConfirmPassword('');
+      setDeleteConfirmPhrase('');
     }
   };
 
@@ -340,20 +361,53 @@ function AdminPage() {
   );
 
   const DeleteConfirmModal = () => (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
       <div className="bg-white rounded-lg p-6 max-w-md w-full">
-        <h3 className="text-xl font-bold mb-4">Confirm Delete</h3>
-        <p className="mb-4">
-          {deleteType === 'all' 
-            ? 'Are you sure you want to delete ALL terms? This action cannot be undone.'
-            : `Are you sure you want to delete ${selectedTerms.size} selected terms? This action cannot be undone.`
-          }
-        </p>
+        <h3 className="text-xl font-bold mb-4 text-red-600">Confirm Delete</h3>
+        {deleteType === 'all' ? (
+          <>
+            <p className="mb-4 text-gray-700">
+              You are about to delete ALL terms from the database. This action cannot be undone.
+            </p>
+            <div className="space-y-4 mb-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Enter your admin password:
+                </label>
+                <input
+                  type="password"
+                  value={deleteConfirmPassword}
+                  onChange={(e) => setDeleteConfirmPassword(e.target.value)}
+                  className="w-full border rounded p-2"
+                  placeholder="Admin password"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Type "DELETE ALL TERMS" to confirm:
+                </label>
+                <input
+                  type="text"
+                  value={deleteConfirmPhrase}
+                  onChange={(e) => setDeleteConfirmPhrase(e.target.value)}
+                  className="w-full border rounded p-2"
+                  placeholder="DELETE ALL TERMS"
+                />
+              </div>
+            </div>
+          </>
+        ) : (
+          <p className="mb-4 text-gray-700">
+            Are you sure you want to delete {selectedTerms.size} selected terms? This action cannot be undone.
+          </p>
+        )}
         <div className="flex justify-end space-x-4">
           <button
             onClick={() => {
               setShowDeleteConfirm(false);
               setDeleteType(null);
+              setDeleteConfirmPassword('');
+              setDeleteConfirmPhrase('');
             }}
             className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600"
           >
@@ -361,7 +415,8 @@ function AdminPage() {
           </button>
           <button
             onClick={handleBulkDelete}
-            className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
+            disabled={deleteType === 'all' && (deleteConfirmPhrase !== 'DELETE ALL TERMS' || !deleteConfirmPassword)}
+            className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 disabled:bg-gray-300"
           >
             Confirm Delete
           </button>
@@ -452,29 +507,72 @@ function AdminPage() {
       </form>
 
       <div className="space-y-4">
+        <div className="flex items-center justify-between mb-4 bg-gray-100 p-4 rounded-lg">
+          <div className="flex items-center">
+            <input
+              type="checkbox"
+              checked={selectAll}
+              onChange={handleSelectAll}
+              className="h-4 w-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+            />
+            <span className="ml-2 text-sm text-gray-700">Select All on This Page</span>
+          </div>
+          <div className="flex space-x-2">
+            <button
+              onClick={() => {
+                setDeleteType('selected');
+                setShowDeleteConfirm(true);
+              }}
+              disabled={selectedTerms.size === 0}
+              className="px-3 py-1 bg-red-500 text-white text-sm rounded hover:bg-red-600 disabled:bg-gray-300"
+            >
+              Delete Selected ({selectedTerms.size})
+            </button>
+            <button
+              onClick={() => {
+                setDeleteType('all');
+                setShowDeleteConfirm(true);
+              }}
+              className="px-3 py-1 bg-red-700 text-white text-sm rounded hover:bg-red-800"
+            >
+              Delete All Terms
+            </button>
+          </div>
+        </div>
+        
         {terms.map((term) => (
           <div key={term.id} className="border p-4 rounded-lg hover:bg-gray-50">
-            <div className="flex justify-between items-start">
-              <div>
-                <h3 className="text-lg font-semibold">{term.term}</h3>
-                <span className="inline-block px-2 py-1 text-sm text-blue-800 bg-blue-100 rounded">
-                  {term.category}
-                </span>
-                <p className="mt-2 text-gray-600">{term.definition}</p>
-              </div>
-              <div className="flex space-x-2">
-                <button
-                  onClick={() => handleEdit(term)}
-                  className="text-blue-600 hover:text-blue-800"
-                >
-                  Edit
-                </button>
-                <button
-                  onClick={() => handleDelete(term.id)}
-                  className="text-red-600 hover:text-red-800"
-                >
-                  Delete
-                </button>
+            <div className="flex items-start space-x-4">
+              <input
+                type="checkbox"
+                checked={selectedTerms.has(term.id)}
+                onChange={() => handleTermSelect(term.id)}
+                className="mt-1 h-4 w-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+              />
+              <div className="flex-grow">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <h3 className="text-lg font-semibold">{term.term}</h3>
+                    <span className="inline-block px-2 py-1 text-sm text-blue-800 bg-blue-100 rounded">
+                      {term.category}
+                    </span>
+                    <p className="mt-2 text-gray-600">{term.definition}</p>
+                  </div>
+                  <div className="flex space-x-2">
+                    <button
+                      onClick={() => handleEdit(term)}
+                      className="text-blue-600 hover:text-blue-800"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      onClick={() => handleDelete(term.id)}
+                      className="text-red-600 hover:text-red-800"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -492,28 +590,6 @@ function AdminPage() {
       >
         Clean Up Duplicates
       </button>
-
-      <div className="mb-4 flex space-x-4">
-        <button
-          onClick={() => {
-            setDeleteType('selected');
-            setShowDeleteConfirm(true);
-          }}
-          disabled={selectedTerms.size === 0}
-          className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 disabled:bg-gray-300"
-        >
-          Delete Selected ({selectedTerms.size})
-        </button>
-        <button
-          onClick={() => {
-            setDeleteType('all');
-            setShowDeleteConfirm(true);
-          }}
-          className="px-4 py-2 bg-red-700 text-white rounded hover:bg-red-800"
-        >
-          Delete All Terms
-        </button>
-      </div>
 
       {showDeleteConfirm && <DeleteConfirmModal />}
     </div>
