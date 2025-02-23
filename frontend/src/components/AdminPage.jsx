@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { createTerm, getTerms, deleteTerm, updateTerm } from '../services/api';
+import { createTerm, getTerms, deleteTerm, updateTerm, API_BASE_URL } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
@@ -19,6 +19,9 @@ function AdminPage() {
   const { logout } = useAuth();
   const navigate = useNavigate();
   const [stats, setStats] = useState(null);
+
+  // Get auth credentials from localStorage
+  const authCredentials = localStorage.getItem('authCredentials');
 
   const fetchTerms = useCallback(async () => {
     try {
@@ -40,20 +43,25 @@ function AdminPage() {
     try {
       const response = await fetch(`${API_BASE_URL}/admin/stats`, {
         headers: {
-          'Authorization': `Basic ${btoa(`${username}:${password}`)}`
+          'Authorization': `Basic ${authCredentials}`
         }
       });
       const data = await response.json();
       setStats(data);
     } catch (error) {
       console.error('Failed to fetch stats:', error);
+      toast.error('Failed to fetch database stats');
     }
   };
 
   useEffect(() => {
+    if (!authCredentials) {
+      navigate('/login');
+      return;
+    }
     fetchTerms();
     fetchStats();
-  }, [fetchTerms, fetchStats]);
+  }, [fetchTerms, authCredentials, navigate]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
