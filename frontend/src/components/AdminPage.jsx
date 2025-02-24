@@ -542,7 +542,7 @@ function AdminPage() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto p-4">
+    <div className="max-w-6xl mx-auto p-4">
       <h2 className="text-2xl font-bold mb-6">
         {selectedTerm ? 'Edit Term' : 'Add New Term'}
       </h2>
@@ -562,15 +562,17 @@ function AdminPage() {
             <select
               value={sortField}
               onChange={(e) => setSortField(e.target.value)}
-              className="p-2 border rounded"
+              className="p-2 border rounded focus:ring-2 focus:ring-blue-500"
             >
               <option value="term">Sort by Term</option>
               <option value="category">Sort by Category</option>
               <option value="definition">Sort by Definition</option>
+              <option value="created">Sort by Date Added</option>
             </select>
             <button
               onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
-              className="p-2 border rounded hover:bg-gray-100"
+              className="p-2 border rounded hover:bg-gray-100 focus:ring-2 focus:ring-blue-500"
+              title={sortOrder === 'asc' ? 'Ascending' : 'Descending'}
             >
               {sortOrder === 'asc' ? '↑' : '↓'}
             </button>
@@ -638,8 +640,8 @@ function AdminPage() {
       </form>
 
       <div className="space-y-4">
-        <div className="flex items-center justify-between mb-4 bg-gray-100 p-4 rounded-lg">
-          <div className="flex items-center">
+        <div className="flex items-center justify-between mb-4 bg-white p-4 rounded-lg shadow">
+          <div className="flex items-center space-x-4">
             <input
               type="checkbox"
               checked={selectAll}
