@@ -102,12 +102,21 @@ async def get_terms(
     search: Optional[str] = None,
     category: Optional[str] = None,
     page: int = 1,
-    per_page: int = 10
+    per_page: int = 10,
+    sort_field: str = 'term',
+    sort_order: str = 'asc'
 ):
-    """Get terms with optional search and category filters"""
+    """Get terms with optional search, category filters, and sorting"""
     try:
         skip = (page - 1) * per_page
-        return await database.get_terms(skip, per_page, search, category)
+        return await database.get_terms(
+            skip=skip,
+            limit=per_page,
+            search=search,
+            category=category,
+            sort_field=sort_field,
+            sort_order=sort_order
+        )
     except Exception as e:
         logger.error(f"Error in get_terms endpoint: {e}")
         raise HTTPException(

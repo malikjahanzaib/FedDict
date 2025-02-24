@@ -61,7 +61,7 @@ async def get_terms(
             {'definition': {'$regex': f'{escaped_search}', '$options': 'i'}},
             {'category': {'$regex': f'{escaped_search}', '$options': 'i'}}
         ]
-    if category:
+    if category and category.strip():
         query['category'] = category
 
     # Validate and apply sorting
@@ -69,7 +69,7 @@ async def get_terms(
         'term': 'term',
         'category': 'category',
         'definition': 'definition',
-        'created': '_id'  # MongoDB ObjectId contains creation timestamp
+        'created': '_id'
     }
     
     sort_field = valid_fields.get(sort_field, 'term')
@@ -77,10 +77,14 @@ async def get_terms(
     sort_config = [(sort_field, sort_order_value)]
 
     try:
-        logger.info(f"Fetching terms with query: {query}, sort: {sort_config}")
+        logger.info(f"Query: {query}")
+        logger.info(f"Sort config: {sort_config}")
+        
         cursor = db.terms.find(query).sort(sort_config).skip(skip).limit(limit)
         terms = await cursor.to_list(length=limit)
         total = await db.terms.count_documents(query)
+        
+        logger.info(f"Found {len(terms)} terms")
         
         return {
             'items': [fix_id(term) for term in terms],

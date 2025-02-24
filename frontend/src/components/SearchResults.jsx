@@ -23,8 +23,11 @@ function SearchResults({
           search: searchTerm,
           category: selectedCategory,
           sort_field: sortField,
-          sort_order: sortOrder
+          sort_order: sortOrder,
+          per_page: 10
         });
+
+        console.log('Fetching with params:', queryParams.toString()); // Debug log
 
         const response = await fetch(`${API_BASE_URL}/terms/?${queryParams}`);
         const data = await response.json();
@@ -32,7 +35,9 @@ function SearchResults({
         if (response.ok) {
           setTerms(data.items || []);
           setTotalPages(data.pages || 1);
-          setCategories(data.categories || []);
+          if (data.categories) {
+            setCategories(data.categories);
+          }
         } else {
           throw new Error(data.detail || 'Failed to fetch results');
         }

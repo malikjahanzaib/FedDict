@@ -44,7 +44,10 @@ function SearchAndFilter({
           {/* Sort Field */}
           <select
             value={sortField}
-            onChange={(e) => setSortField(e.target.value)}
+            onChange={(e) => {
+              setSortField(e.target.value);
+              console.log('Sort field changed to:', e.target.value); // Debug log
+            }}
             className="p-2 border rounded focus:ring-2 focus:ring-blue-500"
           >
             <option value="term">Sort by Term</option>
@@ -55,7 +58,11 @@ function SearchAndFilter({
 
           {/* Sort Order */}
           <button
-            onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
+            onClick={() => {
+              const newOrder = sortOrder === 'asc' ? 'desc' : 'asc';
+              setSortOrder(newOrder);
+              console.log('Sort order changed to:', newOrder); // Debug log
+            }}
             className="p-2 border rounded hover:bg-gray-100 focus:ring-2 focus:ring-blue-500"
             title={sortOrder === 'asc' ? 'Ascending' : 'Descending'}
           >
