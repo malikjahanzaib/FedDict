@@ -301,6 +301,11 @@ async def verify_credentials(username: str = Depends(get_admin_credentials)):
     """Verify admin credentials without performing any action"""
     return {"status": "valid"}
 
+@app.get("/terms/suggestions")
+async def get_term_suggestions(search: str):
+    """Get term suggestions for autocomplete"""
+    return await database.get_suggestions(search)
+
 @app.exception_handler(HTTPException)
 async def custom_http_exception_handler(request, exc):
     return JSONResponse(

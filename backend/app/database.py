@@ -64,7 +64,7 @@ async def get_terms(
     if category:
         query['category'] = category
 
-    # Validate sort field
+    # Validate and apply sorting
     valid_fields = {
         'term': 'term',
         'category': 'category',
@@ -73,13 +73,11 @@ async def get_terms(
     }
     
     sort_field = valid_fields.get(sort_field, 'term')
-    sort_config = [(sort_field, 1 if sort_order == 'asc' else -1)]
-    
-    # Only add secondary sort if primary sort isn't term
-    if sort_field != 'term':
-        sort_config.append(('term', 1))
+    sort_order_value = 1 if sort_order == 'asc' else -1
+    sort_config = [(sort_field, sort_order_value)]
 
     try:
+        logger.info(f"Fetching terms with query: {query}, sort: {sort_config}")
         cursor = db.terms.find(query).sort(sort_config).skip(skip).limit(limit)
         terms = await cursor.to_list(length=limit)
         total = await db.terms.count_documents(query)
@@ -164,19 +162,41 @@ async def get_categories():
 async def get_suggestions(search: str, limit: int = 5):
     """Get term suggestions for autocomplete"""
     try:
-        # Escape special characters in search string
+        if not search.strip():
+            return []
+
         escaped_search = search.replace('(', '\(').replace(')', '\)')
         query = {
-            'term': {'$regex': f'{escaped_search}', '$options': 'i'}
+            'term': {'$regex': f'^{escaped_search}', '$options': 'i'}  # Start with match
         }
+        
         cursor = db.terms.find(query).limit(limit)
         suggestions = await cursor.to_list(length=limit)
         
-        # Return both term and id for each suggestion
-        return [{
-            'term': term['term'],
-            'id': str(term['_id'])
-        } for term in suggestions]
+        # If we don't have enough suggestions, try contains match
+        if len(suggestions) < limit:
+            contains_query = {
+                'term': {
+                    '$regex': f'{escaped_search}',
+                    '$options': 'i'
+                }
+            }
+            more_cursor = db.terms.find(contains_query).limit(limit - len(suggestions))
+            more_suggestions = await more_cursor.to_list(length=limit - len(suggestions))
+            suggestions.extend(more_suggestions)
+
+        # Remove duplicates and format response
+        seen = set()
+        unique_suggestions = []
+        for term in suggestions:
+            if term['term'].lower() not in seen:
+                seen.add(term['term'].lower())
+                unique_suggestions.append({
+                    'term': term['term'],
+                    'id': str(term['_id'])
+                })
+        
+        return unique_suggestions[:limit]
     except Exception as e:
         logger.error(f"Error in get_suggestions: {e}")
         return []
