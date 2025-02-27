@@ -1,3 +1,6 @@
+import os
+from dotenv import load_dotenv
+import logging
 from fastapi import FastAPI, HTTPException, Request, status, Depends, BackgroundTasks, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -6,7 +9,6 @@ from . import database, models_mongo, initial_data
 from .auth import get_admin_credentials
 from slowapi import Limiter
 from slowapi.util import get_remote_address
-import logging
 import time
 import asyncio
 from datetime import datetime
@@ -15,9 +17,20 @@ import json
 from io import StringIO
 from pydantic import BaseModel
 
+# Set up logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# Load environment variables from .env file
+env_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), '.env')
+if os.path.exists(env_path):
+    logger.info(f"Loading environment from {env_path}")
+    load_dotenv(env_path)
+    logger.info(f"MONGODB_URL exists: {os.getenv('MONGODB_URL') is not None}")
+else:
+    logger.warning(f".env file not found at {env_path}")
+
+# Create FastAPI app
 app = FastAPI(title="FedDict API")
 
 # Track last activity
@@ -44,10 +57,7 @@ async def startup_event():
 # Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "https://feddict.vercel.app",
-    ],
+    allow_origins=["*"],  # For development only
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -132,6 +142,21 @@ async def create_term(
     username: str = Depends(get_admin_credentials)
 ):
     return await database.create_term(term.dict())
+
+@app.get("/terms/suggestions")
+async def get_term_suggestions(search: str):
+    """Get term suggestions for autocomplete"""
+    try:
+        logger.info(f"Getting suggestions for: {search}")
+        suggestions = await database.get_suggestions(search)
+        logger.info(f"Found {len(suggestions)} suggestions")
+        return suggestions
+    except Exception as e:
+        logger.error(f"Error in get_term_suggestions: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error getting suggestions: {str(e)}"
+        )
 
 @app.get("/terms/{term_id}", response_model=models_mongo.Term)
 async def get_term(term_id: str):
@@ -309,11 +334,6 @@ async def delete_all_terms(
 async def verify_credentials(username: str = Depends(get_admin_credentials)):
     """Verify admin credentials without performing any action"""
     return {"status": "valid"}
-
-@app.get("/terms/suggestions")
-async def get_term_suggestions(search: str):
-    """Get term suggestions for autocomplete"""
-    return await database.get_suggestions(search)
 
 @app.exception_handler(HTTPException)
 async def custom_http_exception_handler(request, exc):

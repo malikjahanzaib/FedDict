@@ -3,9 +3,11 @@ import { createTerm, getTerms, deleteTerm, updateTerm, API_BASE_URL } from '../s
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
+import SearchBar from './SearchBar';
 
 function AdminPage() {
   const [terms, setTerms] = useState([]);
+  const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedTerm, setSelectedTerm] = useState(null);
@@ -29,9 +31,33 @@ function AdminPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortOrder, setSortOrder] = useState('asc');
   const [sortField, setSortField] = useState('term');
+  const [selectedCategory, setSelectedCategory] = useState(null);
 
   // Get auth credentials from localStorage
   const authCredentials = localStorage.getItem('authCredentials');
+
+  // Debounce search to prevent refreshing after each character
+  const debouncedSearch = useCallback(
+    debounce((value) => {
+      setSearchTerm(value);
+      setCurrentPage(1);
+    }, 500),
+    []
+  );
+
+  const handleSearchChange = (value) => {
+    debouncedSearch(value);
+  };
+
+  // Debounce function
+  function debounce(func, wait) {
+    let timeout;
+    return function(...args) {
+      const context = this;
+      clearTimeout(timeout);
+      timeout = setTimeout(() => func.apply(context, args), wait);
+    };
+  }
 
   const fetchTerms = useCallback(async () => {
     try {
@@ -52,6 +78,7 @@ function AdminPage() {
       
       setTerms(data.items || []);
       setTotalPages(data.pages || 1);
+      setCategories(data.categories || []);
       setError(null);
     } catch (err) {
       console.error('Error fetching terms:', err);
@@ -548,36 +575,17 @@ function AdminPage() {
       </h2>
 
       <div className="mb-6">
-        <div className="flex space-x-4 items-center">
-          <div className="flex-1">
-            <input
-              type="text"
-              placeholder="Search terms..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full p-2 border rounded"
-            />
-          </div>
-          <div className="flex space-x-2">
-            <select
-              value={sortField}
-              onChange={(e) => setSortField(e.target.value)}
-              className="p-2 border rounded focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="term">Sort by Term</option>
-              <option value="category">Sort by Category</option>
-              <option value="definition">Sort by Definition</option>
-              <option value="created">Sort by Date Added</option>
-            </select>
-            <button
-              onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
-              className="p-2 border rounded hover:bg-gray-100 focus:ring-2 focus:ring-blue-500"
-              title={sortOrder === 'asc' ? 'Ascending' : 'Descending'}
-            >
-              {sortOrder === 'asc' ? '↑' : '↓'}
-            </button>
-          </div>
-        </div>
+        <SearchBar 
+          onSearch={handleSearchChange}
+          categories={categories}
+          selectedCategory={selectedCategory || ''}
+          setSelectedCategory={setSelectedCategory}
+          sortField={sortField}
+          setSortField={setSortField}
+          sortOrder={sortOrder}
+          setSortOrder={setSortOrder}
+          isAdmin={true}
+        />
       </div>
 
       <form onSubmit={handleSubmit} className="mb-8 space-y-4">
