@@ -1,112 +1,74 @@
 import React, { useState, useEffect } from 'react';
-import { searchTerms, getCategories, getTerms, API_BASE_URL } from '../services/api';
+import { API_BASE_URL } from '../services/api';
+import SearchBar from './SearchBar';
+import SearchAndFilter from './SearchAndFilter';
+import Pagination from './Pagination';
 
 function SearchPage() {
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [sortField, setSortField] = useState('term');
+  const [sortOrder, setSortOrder] = useState('asc');
   const [selectedCategory, setSelectedCategory] = useState('');
-  const [terms, setTerms] = useState([]);
-  const [categories, setCategories] = useState([]);
-  const [error, setError] = useState(null);
-  const [suggestions, setSuggestions] = useState([]);
-  const [isSearching, setIsSearching] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [categories, setCategories] = useState([]);
+  const [terms, setTerms] = useState([]);
+  const [loading, setLoading] = useState(false);
   const [isServerLoading, setIsServerLoading] = useState(true);
 
-  const useDebounce = (value, delay) => {
-    const [debouncedValue, setDebouncedValue] = useState(value);
-
-    useEffect(() => {
-      const handler = setTimeout(() => {
-        setDebouncedValue(value);
-      }, delay);
-
-      return () => {
-        clearTimeout(handler);
-      };
-    }, [value, delay]);
-
-    return debouncedValue;
+  const handleSearch = async (searchValue) => {
+    setSearchTerm(searchValue);
+    setCurrentPage(1); // Reset to first page on new search
   };
-
-  const debouncedSearchQuery = useDebounce(searchQuery, 300);
-
-  useEffect(() => {
-    const fetchInitialData = async () => {
-      try {
-        const [termsResponse, categoriesData] = await Promise.all([
-          getTerms(),
-          getCategories()
-        ]);
-        setTerms(termsResponse.items || []);
-        setTotalPages(termsResponse.pages || 1);
-        setCategories(categoriesData || []);
-        setError(null);
-      } catch (err) {
-        console.error('Error:', err);
-        setError('Failed to load initial data. Please try again later.');
-        setTerms([]);
-        setCategories([]);
-      }
-    };
-
-    fetchInitialData();
-  }, []);
 
   useEffect(() => {
     const fetchResults = async () => {
-      setIsSearching(true);
       try {
-        let response;
-        if (debouncedSearchQuery || selectedCategory) {
-          response = await searchTerms(debouncedSearchQuery, selectedCategory, currentPage);
+        setLoading(true);
+        const queryParams = new URLSearchParams({
+          page: currentPage,
+          search: searchTerm,
+          category: selectedCategory,
+          sort_field: sortField,
+          sort_order: sortOrder
+        });
+
+        console.log(`Fetching from: ${API_BASE_URL}/terms/?${queryParams}`);
+        const response = await fetch(`${API_BASE_URL}/terms/?${queryParams}`);
+        const data = await response.json();
+
+        if (response.ok) {
+          setTerms(data.items || []);
+          setTotalPages(data.pages || 1);
+          if (data.categories) {
+            setCategories(data.categories);
+          }
         } else {
-          response = await getTerms(currentPage);
+          console.error('Error fetching results:', data);
         }
-        setTerms(response.items || []);
-        setTotalPages(response.pages || 1);
-        setError(null);
       } catch (error) {
         console.error('Search error:', error);
-        setError('Search failed. Please try again.');
-        setTerms([]);
       } finally {
-        setIsSearching(false);
+        setLoading(false);
       }
     };
 
     fetchResults();
-  }, [debouncedSearchQuery, selectedCategory, currentPage]);
-
-  // Debounced search for suggestions
-  useEffect(() => {
-    if (searchQuery.length >= 2) {
-      const timeoutId = setTimeout(async () => {
-        try {
-          const response = await searchTerms(searchQuery);
-          // Make sure we're getting items from the paginated response
-          setSuggestions(response.items.map(r => r.term));
-        } catch (error) {
-          console.error('Failed to fetch suggestions:', error);
-          setSuggestions([]);
-        }
-      }, 300);
-      return () => clearTimeout(timeoutId);
-    } else {
-      setSuggestions([]);
-    }
-  }, [searchQuery]);
+  }, [searchTerm, currentPage, sortField, sortOrder, selectedCategory]);
 
   // Add initial health check
   useEffect(() => {
     const checkServer = async () => {
       try {
+        console.log(`Checking server at: ${API_BASE_URL}`);
         const response = await fetch(`${API_BASE_URL}/`);
         if (response.ok) {
+          console.log('Server is up and running');
           setIsServerLoading(false);
         }
       } catch (error) {
-        console.error('Server warming up:', error);
+        console.error('Server check failed:', error);
+        setTimeout(checkServer, 2000); // Retry after 2 seconds
       }
     };
     checkServer();
@@ -117,121 +79,59 @@ function SearchPage() {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mb-4"></div>
-        <p className="text-gray-600">Server is warming up, please wait...</p>
+        <p className="text-gray-600">Connecting to backend at {API_BASE_URL}</p>
         <p className="text-sm text-gray-500 mt-2">This may take a few seconds</p>
       </div>
     );
   }
 
-  // Add pagination controls to the UI
-  const Pagination = () => (
-    <div className="flex justify-center mt-4 space-x-2">
-      <button
-        onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-        disabled={currentPage === 1}
-        className="px-4 py-2 rounded bg-blue-500 text-white disabled:bg-gray-300"
-      >
-        Previous
-      </button>
-      <span className="px-4 py-2">
-        Page {currentPage} of {totalPages}
-      </span>
-      <button
-        onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-        disabled={currentPage === totalPages}
-        className="px-4 py-2 rounded bg-blue-500 text-white disabled:bg-gray-300"
-      >
-        Next
-      </button>
-    </div>
-  );
-
-  // Update category selection handler
-  const handleCategoryChange = (e) => {
-    setSelectedCategory(e.target.value);
-    setCurrentPage(1); // Reset to first page when changing category
-  };
-
-  if (error) {
-    return (
-      <div className="text-center text-red-600 mt-8">
-        {error}
-        <div className="mt-2 text-sm">
-          Backend URL: {API_BASE_URL} {/* Debug info */}
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="max-w-4xl mx-auto">
-      <div className="relative mb-8">
-        <input
-          type="text"
-          placeholder="Search terms..."
-          className="w-full p-4 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-        />
-        {suggestions.length > 0 && (
-          <ul className="absolute z-10 w-full bg-white border border-gray-300 rounded-lg mt-1 shadow-lg">
-            {suggestions.map((suggestion, index) => (
-              <li
-                key={index}
-                className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
-                onClick={() => {
-                  setSearchQuery(suggestion);
-                  setSuggestions([]);
-                }}
-              >
-                {suggestion}
-              </li>
-            ))}
-          </ul>
-        )}
+    <div className="max-w-6xl mx-auto p-4">
+      <div className="mb-6">
+        <SearchBar onSearch={handleSearch} />
       </div>
 
-      <div className="mb-8">
-        <select
-          className="mt-4 p-2 rounded-lg border border-gray-300"
-          value={selectedCategory}
-          onChange={handleCategoryChange}
-        >
-          <option value="">All Categories</option>
-          {categories.map((category) => (
-            <option key={category} value={category}>
-              {category}
-            </option>
-          ))}
-        </select>
-      </div>
+      <SearchAndFilter
+        searchTerm={searchTerm}
+        setSearchTerm={setSearchTerm}
+        sortField={sortField}
+        setSortField={setSortField}
+        sortOrder={sortOrder}
+        setSortOrder={setSortOrder}
+        categories={categories}
+        selectedCategory={selectedCategory}
+        setSelectedCategory={setSelectedCategory}
+      />
 
-      {isSearching ? (
-        <div className="flex justify-center items-center py-8">
+      {loading ? (
+        <div className="flex justify-center py-8">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
         </div>
-      ) : terms.length === 0 ? (
-        <div className="text-center text-gray-600 py-8">
-          No terms found. Try adjusting your search.
-        </div>
-      ) : (
+      ) : terms.length > 0 ? (
         <div className="space-y-4">
           {terms.map((term) => (
-            <div
-              key={term.id}
-              className="bg-white p-6 rounded-lg shadow-md"
-            >
-              <h3 className="text-xl font-bold text-gray-900">{term.term}</h3>
-              <span className="inline-block px-3 py-1 mt-2 text-sm font-semibold text-blue-800 bg-blue-100 rounded-full">
+            <div key={term.id} className="bg-white p-4 rounded-lg shadow hover:shadow-md transition-shadow">
+              <h3 className="text-lg font-semibold text-gray-900">{term.term}</h3>
+              <span className="inline-block px-2 py-1 mt-1 text-sm text-blue-800 bg-blue-100 rounded">
                 {term.category}
               </span>
               <p className="mt-2 text-gray-600">{term.definition}</p>
             </div>
           ))}
         </div>
+      ) : (
+        <div className="text-center py-8 text-gray-600">
+          No terms found. Try adjusting your search.
+        </div>
       )}
 
-      <Pagination />
+      {totalPages > 1 && (
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={setCurrentPage}
+        />
+      )}
     </div>
   );
 }
