@@ -78,22 +78,27 @@ export const searchTerms = async (search = '', category = '', page = 1, sortFiel
   }
 };
 
-export const createTerm = async (termData, authToken) => {
+export const createTerm = async (termData) => {
   try {
+    const authCredentials = localStorage.getItem('authCredentials');
+    if (!authCredentials) {
+      throw new Error('Not authenticated');
+    }
+
     const response = await fetch(`${API_BASE_URL}/terms/`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Basic ${authToken}`
+        'Authorization': `Basic ${authCredentials}`
       },
       body: JSON.stringify(termData)
     });
-    
+
     if (!response.ok) {
       const errorData = await response.json();
       throw new Error(errorData.detail || 'Failed to create term');
     }
-    
+
     return await response.json();
   } catch (error) {
     console.error('Create term error:', error);
@@ -101,22 +106,27 @@ export const createTerm = async (termData, authToken) => {
   }
 };
 
-export const updateTerm = async (id, termData, authToken) => {
+export const updateTerm = async (termId, termData) => {
   try {
-    const response = await fetch(`${API_BASE_URL}/terms/${id}`, {
+    const authCredentials = localStorage.getItem('authCredentials');
+    if (!authCredentials) {
+      throw new Error('Not authenticated');
+    }
+
+    const response = await fetch(`${API_BASE_URL}/terms/${termId}`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Basic ${authToken}`
+        'Authorization': `Basic ${authCredentials}`
       },
       body: JSON.stringify(termData)
     });
-    
+
     if (!response.ok) {
       const errorData = await response.json();
       throw new Error(errorData.detail || 'Failed to update term');
     }
-    
+
     return await response.json();
   } catch (error) {
     console.error('Update term error:', error);
@@ -124,20 +134,25 @@ export const updateTerm = async (id, termData, authToken) => {
   }
 };
 
-export const deleteTerm = async (id, authToken) => {
+export const deleteTerm = async (termId) => {
   try {
-    const response = await fetch(`${API_BASE_URL}/terms/${id}`, {
+    const authCredentials = localStorage.getItem('authCredentials');
+    if (!authCredentials) {
+      throw new Error('Not authenticated');
+    }
+
+    const response = await fetch(`${API_BASE_URL}/terms/${termId}`, {
       method: 'DELETE',
       headers: {
-        'Authorization': `Basic ${authToken}`
+        'Authorization': `Basic ${authCredentials}`
       }
     });
-    
+
     if (!response.ok) {
       const errorData = await response.json();
       throw new Error(errorData.detail || 'Failed to delete term');
     }
-    
+
     return true;
   } catch (error) {
     console.error('Delete term error:', error);
@@ -279,5 +294,25 @@ const fetchWithTimeout = async (url, options, timeout = 5000) => {
   } catch (error) {
     clearTimeout(id);
     throw error;
+  }
+};
+
+// Add this function to your api.js file
+export const verifyAuth = async () => {
+  const authCredentials = localStorage.getItem('authCredentials');
+  if (!authCredentials) return false;
+  
+  try {
+    const response = await fetch(`${API_BASE_URL}/admin/verify`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Basic ${authCredentials}`
+      }
+    });
+    
+    return response.ok;
+  } catch (error) {
+    console.error('Auth verification error:', error);
+    return false;
   }
 }; 
