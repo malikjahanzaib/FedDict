@@ -1,64 +1,69 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { verifyAuth, setAuthCredentials, clearAuthCredentials } from '../services/api';
+import { toast } from 'react-toastify';
 
-const AuthContext = createContext();
+const AuthContext = createContext(null);
 
-export function useAuth() {
-  return useContext(AuthContext);
-}
-
-export function AuthProvider({ children }) {
+export const AuthProvider = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Check localStorage for credentials on mount
-    const storedCredentials = localStorage.getItem('authCredentials');
-    if (storedCredentials) {
-      setAuthCredentials(storedCredentials);
-      checkAuth();
-    } else {
-      setLoading(false);
-    }
+    const checkAuth = async () => {
+      try {
+        const isValid = await verifyAuth();
+        setIsAuthenticated(isValid);
+      } catch (error) {
+        console.error('Auth check error:', error);
+        setIsAuthenticated(false);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    checkAuth();
   }, []);
 
-  const checkAuth = async () => {
-    try {
-      const isValid = await verifyAuth();
-      setIsAuthenticated(isValid);
-    } catch (error) {
-      console.error('Auth check failed:', error);
-      setIsAuthenticated(false);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const login = async (username, password) => {
-    const credentials = btoa(`${username}:${password}`);
-    setAuthCredentials(credentials);
-    localStorage.setItem('authCredentials', credentials);
-    const isValid = await verifyAuth();
-    setIsAuthenticated(isValid);
-    return isValid;
+    try {
+      const credentials = btoa(`${username}:${password}`);
+      
+      const response = await fetch(`${process.env.REACT_APP_API_BASE_URL || 'http://localhost:8000'}/admin/verify`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Basic ${credentials}`
+        }
+      });
+      
+      if (response.ok) {
+        localStorage.setItem('authCredentials', credentials);
+        setAuthCredentials(credentials);
+        setIsAuthenticated(true);
+        return true;
+      } else {
+        toast.error('Invalid credentials');
+        return false;
+      }
+    } catch (error) {
+      console.error('Login error:', error);
+      toast.error('Login failed. Please try again.');
+      return false;
+    }
   };
 
   const logout = () => {
-    clearAuthCredentials();
     localStorage.removeItem('authCredentials');
+    clearAuthCredentials();
     setIsAuthenticated(false);
   };
 
-  const value = {
-    isAuthenticated,
-    login,
-    logout,
-    loading
-  };
-
   return (
-    <AuthContext.Provider value={value}>
-      {!loading && children}
+    <AuthContext.Provider value={{ isAuthenticated, isLoading, login, logout }}>
+      {children}
     </AuthContext.Provider>
   );
-} 
+};
+
+export const useAuth = () => useContext(AuthContext);
+
+export default AuthContext; 

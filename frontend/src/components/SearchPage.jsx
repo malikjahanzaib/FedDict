@@ -3,17 +3,19 @@ import { API_BASE_URL } from '../services/api';
 import SearchBar from './SearchBar';
 import SearchAndFilter from './SearchAndFilter';
 import Pagination from './Pagination';
+import { searchTerms, getCategories } from '../services/api';
 
 function SearchPage() {
-  const [searchTerm, setSearchTerm] = useState('');
-  const [sortField, setSortField] = useState('term');
-  const [sortOrder, setSortOrder] = useState('asc');
-  const [selectedCategory, setSelectedCategory] = useState('');
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [categories, setCategories] = useState([]);
   const [terms, setTerms] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [categories, setCategories] = useState([]);
+  const [selectedCategory, setSelectedCategory] = useState('');
+  const [sortField, setSortField] = useState('term');
+  const [sortOrder, setSortOrder] = useState('asc');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
   const [isServerLoading, setIsServerLoading] = useState(true);
 
   const handleSearch = async (searchValue) => {
@@ -86,23 +88,20 @@ function SearchPage() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto p-4">
-      <div className="mb-6">
-        <SearchBar onSearch={handleSearch} />
-      </div>
-
+    <div className="container mx-auto px-4 py-8">
+      <h1 className="text-3xl font-bold mb-8">Federal Dictionary</h1>
+      <SearchBar onSearch={setSearchTerm} />
       <SearchAndFilter
         searchTerm={searchTerm}
         setSearchTerm={setSearchTerm}
+        categories={categories}
+        selectedCategory={selectedCategory}
+        setSelectedCategory={setSelectedCategory}
         sortField={sortField}
         setSortField={setSortField}
         sortOrder={sortOrder}
         setSortOrder={setSortOrder}
-        categories={categories}
-        selectedCategory={selectedCategory}
-        setSelectedCategory={setSelectedCategory}
       />
-
       {loading ? (
         <div className="flex justify-center py-8">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>

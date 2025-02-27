@@ -7,17 +7,29 @@ import logging
 from datetime import datetime, timedelta
 from functools import lru_cache
 from . import models_mongo
+from .config import MONGODB_URL
 
 # Initialize logger
 logger = logging.getLogger(__name__)
 
-# Get MongoDB URL from environment variable
+# Get MongoDB URL directly from environment
 MONGODB_URL = os.getenv("MONGODB_URL")
 if not MONGODB_URL:
-    raise ValueError(
-        "No MongoDB URL found. "
-        "Make sure MONGODB_URL environment variable is set"
-    )
+    # Try loading from .env file directly as a fallback
+    from dotenv import load_dotenv
+    env_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), '.env')
+    if os.path.exists(env_path):
+        logger.info(f"Trying to load environment from {env_path}")
+        load_dotenv(env_path)
+        MONGODB_URL = os.getenv("MONGODB_URL")
+    
+    if not MONGODB_URL:
+        logger.error("MONGODB_URL environment variable not set")
+        raise ValueError(
+            "No MongoDB URL found. Make sure MONGODB_URL environment variable is set"
+        )
+
+logger.info(f"Connecting to MongoDB with URL starting with: {MONGODB_URL[:20]}...")
 
 # Create Motor client with connection pooling and timeouts
 client = motor.motor_asyncio.AsyncIOMotorClient(
@@ -317,4 +329,5 @@ async def delete_all_terms() -> int:
         return result.deleted_count
     except Exception as e:
         logger.error(f"Delete all error: {e}")
+        raise 
         raise 

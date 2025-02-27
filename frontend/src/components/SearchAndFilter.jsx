@@ -13,25 +13,14 @@ function SearchAndFilter({
 }) {
   return (
     <div className="mb-6 bg-white rounded-lg shadow p-4">
-      <div className="flex flex-col md:flex-row gap-4">
-        {/* Search */}
-        <div className="flex-1">
-          <input
-            type="text"
-            placeholder="Search terms..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          />
-        </div>
-
-        {/* Filters */}
-        <div className="flex flex-wrap gap-2">
-          {/* Category Filter */}
+      {/* Changed from flex-col md:flex-row to grid layout for better width distribution */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {/* Category Filter - now takes full width on mobile, 1/3 on desktop */}
+        <div className="w-full">
           <select
             value={selectedCategory}
             onChange={(e) => setSelectedCategory(e.target.value)}
-            className="p-2 border rounded focus:ring-2 focus:ring-blue-500"
+            className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500"
           >
             <option value="">All Categories</option>
             {categories.map(category => (
@@ -40,33 +29,37 @@ function SearchAndFilter({
               </option>
             ))}
           </select>
+        </div>
 
-          {/* Sort Field */}
+        {/* Sort Field - now takes full width on mobile, 1/3 on desktop */}
+        <div className="w-full">
           <select
             value={sortField}
             onChange={(e) => {
               setSortField(e.target.value);
-              console.log('Sort field changed to:', e.target.value); // Debug log
+              console.log('Sort field changed to:', e.target.value);
             }}
-            className="p-2 border rounded focus:ring-2 focus:ring-blue-500"
+            className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500"
           >
             <option value="term">Sort by Term</option>
             <option value="category">Sort by Category</option>
             <option value="definition">Sort by Definition</option>
             <option value="created">Sort by Date Added</option>
           </select>
+        </div>
 
-          {/* Sort Order */}
+        {/* Sort Order - now takes full width on mobile, 1/3 on desktop */}
+        <div className="w-full flex justify-center md:justify-start">
           <button
             onClick={() => {
               const newOrder = sortOrder === 'asc' ? 'desc' : 'asc';
               setSortOrder(newOrder);
-              console.log('Sort order changed to:', newOrder); // Debug log
+              console.log('Sort order changed to:', newOrder);
             }}
-            className="p-2 border rounded hover:bg-gray-100 focus:ring-2 focus:ring-blue-500"
+            className="w-full p-2 border rounded hover:bg-gray-100 focus:ring-2 focus:ring-blue-500 flex items-center justify-center"
             title={sortOrder === 'asc' ? 'Ascending' : 'Descending'}
           >
-            {sortOrder === 'asc' ? '↑' : '↓'}
+            Sort Order: {sortOrder === 'asc' ? 'Ascending ↑' : 'Descending ↓'}
           </button>
         </div>
       </div>
