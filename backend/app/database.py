@@ -8,6 +8,8 @@ from datetime import datetime, timedelta
 from functools import lru_cache
 from . import models_mongo
 from .config import MONGODB_URL
+import certifi
+from pymongo import MongoClient
 
 # Initialize logger
 logger = logging.getLogger(__name__)
@@ -35,7 +37,8 @@ logger.info(f"Connecting to MongoDB with URL starting with: {MONGODB_URL[:20]}..
 client = motor.motor_asyncio.AsyncIOMotorClient(
     MONGODB_URL,
     serverSelectionTimeoutMS=5000,
-    connectTimeoutMS=10000
+    connectTimeoutMS=10000,
+    tlsCAFile=certifi.where()
 )
 
 db = client.feddict  # Add this line to define the database
