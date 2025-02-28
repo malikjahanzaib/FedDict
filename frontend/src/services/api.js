@@ -20,6 +20,15 @@ const handleResponse = async (response, errorMessage) => {
   return response.json();
 };
 
+// Add some logging to help debug API calls
+const logApiCall = (method, url, response) => {
+  console.log(`API ${method} ${url}:`, {
+    status: response.status,
+    ok: response.ok,
+    statusText: response.statusText
+  });
+};
+
 // Auth functions
 export const login = async (username, password) => {
   const credentials = btoa(`${username}:${password}`);
@@ -47,6 +56,8 @@ export const login = async (username, password) => {
 export const getTerms = async (page = 1, perPage = 10) => {
   try {
     const response = await fetch(`${API_BASE_URL}/terms/?page=${page}&per_page=${perPage}`);
+    logApiCall('GET', `/terms/?page=${page}&per_page=${perPage}`, response);
+    
     if (!response.ok) {
       throw new Error('Failed to fetch terms');
     }
