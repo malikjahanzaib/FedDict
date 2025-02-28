@@ -1,9 +1,12 @@
 // API configuration
-export const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8000';
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8000';
 
-// Add logging to help debug
-console.log('API_BASE_URL:', process.env.REACT_APP_API_BASE_URL);
-console.log('Using API URL:', API_BASE_URL);
+// Add debugging
+console.log('Environment:', process.env.NODE_ENV);
+console.log('API URL:', API_BASE_URL);
+console.log('Raw env var:', process.env.REACT_APP_API_BASE_URL);
+
+export { API_BASE_URL };
 
 let authCredentials = localStorage.getItem('authCredentials');
 
