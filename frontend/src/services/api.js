@@ -1,6 +1,10 @@
 // API configuration
 export const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8000';
 
+// Add logging to help debug
+console.log('API_BASE_URL:', process.env.REACT_APP_API_BASE_URL);
+console.log('Using API URL:', API_BASE_URL);
+
 let authCredentials = localStorage.getItem('authCredentials');
 
 export function setAuthCredentials(credentials) {

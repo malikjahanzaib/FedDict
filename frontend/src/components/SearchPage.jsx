@@ -96,8 +96,8 @@ function SearchPage() {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mb-4"></div>
-        <p className="text-gray-600">Connecting to backend at {API_BASE_URL}</p>
-        <p className="text-sm text-gray-500 mt-2">This may take a few seconds</p>
+        <p className="text-gray-600">Connecting to backend...</p>
+        <p className="text-sm text-gray-500 mt-2">This may take a few seconds during cold start</p>
       </div>
     );
   }
